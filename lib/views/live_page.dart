@@ -157,20 +157,28 @@ class _ChatAndReactionWidgetState extends State<_ChatAndReactionWidget> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Affichage des réactions récentes
+            // Affichage des réactions récentes animées
             SizedBox(
               height: 40,
-              child: ListView(
+              child: AnimatedList(
+                key: ValueKey(reaction.reactions.length),
                 scrollDirection: Axis.horizontal,
-                children: reaction.reactions.reversed.take(10).map((r) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                    child: Text(
-                      r['type'] ?? '',
-                      style: const TextStyle(fontSize: 24),
+                initialItemCount: reaction.reactions.length > 10
+                    ? 10
+                    : reaction.reactions.length,
+                itemBuilder: (context, index, animation) {
+                  final r = reaction.reactions.reversed.toList()[index];
+                  return ScaleTransition(
+                    scale: animation,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                      child: Text(
+                        r['type'] ?? '',
+                        style: const TextStyle(fontSize: 32),
+                      ),
                     ),
                   );
-                }).toList(),
+                },
               ),
             ),
             // Chat

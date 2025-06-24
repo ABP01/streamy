@@ -28,11 +28,14 @@ class LiveProvider extends ChangeNotifier {
     errorMessage = null;
     notifyListeners();
     try {
-      await Supabase.instance.client.from('lives').insert({
+      final res = await Supabase.instance.client.from('lives').insert({
         'title': title,
-        'channel_id': channelId,
+        'channel_id': channelId.isNotEmpty ? channelId : null,
         'host_id': hostId,
-      });
+      }).select();
+      if (res.isEmpty) {
+        errorMessage = "Erreur lors de la création du live.";
+      }
       await fetchLives();
     } catch (e) {
       errorMessage = e.toString();

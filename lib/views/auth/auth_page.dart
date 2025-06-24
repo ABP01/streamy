@@ -43,8 +43,32 @@ class _AuthPageState extends State<AuthPage> {
         ? await auth.signIn(email, password)
         : await auth.signUp(email, password);
     if (success) {
-      // La navigation est gérée par HomePage via auth.user
+      setState(() {
+        localError = null;
+      });
+      if (auth.errorMessage != null) {
+        // Efface l'erreur du provider si succès
+        auth.errorMessage = null;
+      }
+    } else if (auth.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            auth.errorMessage!,
+            style: const TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
+  }
+
+  void _toggleMode(AuthProvider auth) {
+    setState(() {
+      isLogin = !isLogin;
+      localError = null;
+    });
+    auth.errorMessage = null;
   }
 
   @override
@@ -73,12 +97,16 @@ class _AuthPageState extends State<AuthPage> {
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: auth.isLoading ? null : () => _submit(auth),
-                  child: Text(isLogin ? 'Se connecter' : 'Créer un compte'),
+                  child: auth.isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(isLogin ? 'Se connecter' : 'Créer un compte'),
                 ),
                 TextButton(
-                  onPressed: auth.isLoading
-                      ? null
-                      : () => setState(() => isLogin = !isLogin),
+                  onPressed: auth.isLoading ? null : () => _toggleMode(auth),
                   child: Text(
                     isLogin ? 'Créer un compte' : 'Déjà inscrit ? Se connecter',
                   ),
@@ -94,9 +122,16 @@ class _AuthPageState extends State<AuthPage> {
                 if (auth.errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Text(
-                      auth.errorMessage!,
-                      style: const TextStyle(color: Colors.red),
+                    child: AnimatedOpacity(
+                      opacity: auth.errorMessage != null ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 300),
+                      child: Text(
+                        auth.errorMessage!,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 if (auth.isLoading)

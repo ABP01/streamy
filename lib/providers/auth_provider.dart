@@ -24,7 +24,9 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
       if (res.session == null) {
-        errorMessage = _extractError(res);
+        errorMessage = res.user == null
+            ? 'Email ou mot de passe incorrect.'
+            : _extractError(res);
         isLoading = false;
         notifyListeners();
         return false;
@@ -53,7 +55,9 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
       if (res.user == null) {
-        errorMessage = _extractError(res);
+        errorMessage = res.user == null && res.session == null
+            ? "Vérifiez votre email pour valider l'inscription."
+            : _extractError(res);
         isLoading = false;
         notifyListeners();
         return false;
