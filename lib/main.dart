@@ -1,21 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:streamy/views/homePage.dart';
-void main() {
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'env.dart';
+import 'views/homePage.dart';
+import 'providers/auth_provider.dart';
+import 'providers/live_provider.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Env.load();
+  await Supabase.initialize(
+    url: Env.supabaseUrl!,
+    anonKey: Env.supabaseKey!,
+  );
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => LiveProvider()),
+      ],
+      child: MaterialApp(
+        title: 'Streamy',
+        theme: ThemeData.dark(),
+        home: const HomePage(),
       ),
-      home: Homepage(),
     );
   }
 }

@@ -1,10 +1,91 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/live_provider.dart';
+import 'auth/auth_page.dart';
 
-class Homepage extends StatelessWidget {
-  const Homepage({super.key});
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        if (auth.user == null) {
+          return const AuthPage();
+        }
+        return Consumer<LiveProvider>(
+          builder: (context, liveProvider, _) {
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Lives'),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.logout),
+                    onPressed: () => auth.signOut(),
+                  ),
+                ],
+              ),
+              body: RefreshIndicator(
+                onRefresh: () => liveProvider.fetchLives(),
+                child: liveProvider.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : liveProvider.lives.isEmpty
+                        ? const Center(child: Text('Aucun live pour le moment.'))
+                        : ListView.builder(
+                            itemCount: liveProvider.lives.length,
+                            itemBuilder: (context, index) {
+                              final live = liveProvider.lives[index];
+                              return ListTile(
+                                title: Text(live['title'] ?? 'Live'),
+                                subtitle: Text('Host: ${live['host_id']}'),
+                                onTap: () {
+                                  // TODO: Naviguer vers la page du live (Agora)
+                                },
+                              );
+                            },
+                          ),
+              ),
+              floatingActionButton: FloatingActionButton(
+                onPressed: () async {
+                  final titleController = TextEditingController();
+                  await showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Créer un live'),
+                      content: TextField(
+                        controller: titleController,
+                        decoration: const InputDecoration(labelText: 'Titre du live'),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Annuler'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () async {
+                            final title = titleController.text.trim();
+                            if (title.isNotEmpty) {
+                              await liveProvider.createLive(
+                                title,
+                                '', // TODO: channelId
+                                auth.user!.id,
+                              );
+                              Navigator.pop(context);
+                            }
+                          },
+                          child: const Text('Créer'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                child: const Icon(Icons.add),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }
