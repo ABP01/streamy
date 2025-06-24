@@ -6,6 +6,7 @@ import '../env.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/reaction_provider.dart';
+import '../services/agora_token_service.dart';
 
 class LivePage extends StatefulWidget {
   final String channelId;
@@ -26,14 +27,25 @@ class _LivePageState extends State<LivePage> {
   int? _localUid;
   final List<int> _remoteUids = [];
   late final RtcEngine _engine;
+  late AgoraTokenService _tokenService;
+  String? _agoraToken;
 
   @override
   void initState() {
     super.initState();
+    _tokenService = AgoraTokenService(Env.backendUrl!);
     _initAgora();
   }
 
   Future<void> _initAgora() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final tokenData = await _tokenService.fetchAgoraToken(
+      channelName: widget.channelId,
+      supabaseAccessToken: auth.accessToken ?? '',
+      isBroadcaster: widget.isHost,
+    );
+    _agoraToken = tokenData?['token'] ?? '';
+    final uid = tokenData?['uid'] ?? 0;
     _engine = createAgoraRtcEngine();
     await _engine.initialize(RtcEngineContext(appId: Env.agoraAppId!));
     await _engine.enableVideo();
@@ -51,9 +63,9 @@ class _LivePageState extends State<LivePage> {
       ),
     );
     await _engine.joinChannel(
-      token: '', // Pas de token pour le moment
+      token: _agoraToken ?? '',
       channelId: widget.channelId,
-      uid: 0,
+      uid: uid,
       options: const ChannelMediaOptions(),
     );
   }

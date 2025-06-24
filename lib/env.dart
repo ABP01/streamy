@@ -5,6 +5,7 @@ class Env {
   static String? supabaseKey;
   static String? agoraAppId;
   static String? agoraCertificate;
+  static String? backendUrl;
 
   static Future<void> load() async {
     final env = await rootBundle.loadString('assets/.env');
@@ -17,6 +18,8 @@ class Env {
         agoraAppId = line.split('=')[1].trim();
       } else if (line.startsWith('AGORA_CERTIFICATE=')) {
         agoraCertificate = line.split('=')[1].trim();
+      } else if (line.startsWith('BACKEND_URL=')) {
+        backendUrl = line.split('=')[1].trim();
       }
     }
   }

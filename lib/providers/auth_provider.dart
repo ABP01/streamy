@@ -5,6 +5,7 @@ class AuthProvider extends ChangeNotifier {
   bool isLoading = false;
   User? user;
   String? errorMessage;
+  String? accessToken;
 
   AuthProvider() {
     user = Supabase.instance.client.auth.currentUser;
@@ -32,6 +33,7 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
       user = res.user;
+      accessToken = res.session?.accessToken;
       isLoading = false;
       notifyListeners();
       return true;
@@ -63,6 +65,7 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
       user = res.user;
+      accessToken = res.session?.accessToken;
       isLoading = false;
       notifyListeners();
       return true;
@@ -79,6 +82,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> signOut() async {
     await Supabase.instance.client.auth.signOut();
     user = null;
+    accessToken = null;
     errorMessage = null;
     notifyListeners();
   }
