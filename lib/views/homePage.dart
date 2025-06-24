@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/auth_provider.dart';
 import '../providers/live_provider.dart';
 import 'auth/auth_page.dart';
+import 'live_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -31,20 +33,29 @@ class HomePage extends StatelessWidget {
                 child: liveProvider.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : liveProvider.lives.isEmpty
-                        ? const Center(child: Text('Aucun live pour le moment.'))
-                        : ListView.builder(
-                            itemCount: liveProvider.lives.length,
-                            itemBuilder: (context, index) {
-                              final live = liveProvider.lives[index];
-                              return ListTile(
-                                title: Text(live['title'] ?? 'Live'),
-                                subtitle: Text('Host: ${live['host_id']}'),
-                                onTap: () {
-                                  // TODO: Naviguer vers la page du live (Agora)
-                                },
+                    ? const Center(child: Text('Aucun live pour le moment.'))
+                    : ListView.builder(
+                        itemCount: liveProvider.lives.length,
+                        itemBuilder: (context, index) {
+                          final live = liveProvider.lives[index];
+                          return ListTile(
+                            title: Text(live['title'] ?? 'Live'),
+                            subtitle: Text('Host: ${live['host_id']}'),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => LivePage(
+                                    channelId: live['channel_id'] ?? live['id'],
+                                    liveId: live['id'],
+                                    isHost: auth.user!.id == live['host_id'],
+                                  ),
+                                ),
                               );
                             },
-                          ),
+                          );
+                        },
+                      ),
               ),
               floatingActionButton: FloatingActionButton(
                 onPressed: () async {
@@ -55,7 +66,9 @@ class HomePage extends StatelessWidget {
                       title: const Text('Créer un live'),
                       content: TextField(
                         controller: titleController,
-                        decoration: const InputDecoration(labelText: 'Titre du live'),
+                        decoration: const InputDecoration(
+                          labelText: 'Titre du live',
+                        ),
                       ),
                       actions: [
                         TextButton(

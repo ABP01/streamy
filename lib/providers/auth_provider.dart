@@ -19,9 +19,13 @@ class AuthProvider extends ChangeNotifier {
     errorMessage = null;
     notifyListeners();
     try {
-      final res = await Supabase.instance.client.auth.signInWithPassword(email: email, password: password);
+      final res = await Supabase.instance.client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
       if (res.session == null) {
-        errorMessage = res.toString(); // fallback, affichera le contenu de la réponse
+        errorMessage = res
+            .toString(); // fallback, affichera le contenu de la réponse
       }
     } catch (e) {
       errorMessage = e.toString();
@@ -35,9 +39,13 @@ class AuthProvider extends ChangeNotifier {
     errorMessage = null;
     notifyListeners();
     try {
-      final res = await Supabase.instance.client.auth.signUp(email: email, password: password);
+      final res = await Supabase.instance.client.auth.signUp(
+        email: email,
+        password: password,
+      );
       if (res.session == null && res.user == null) {
-        errorMessage = res.toString(); // fallback, affichera le contenu de la réponse
+        errorMessage = res
+            .toString(); // fallback, affichera le contenu de la réponse
       }
     } catch (e) {
       errorMessage = e.toString();

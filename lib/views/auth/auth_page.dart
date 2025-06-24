@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/auth_provider.dart';
 
 class AuthPage extends StatefulWidget {
@@ -24,9 +25,15 @@ class _AuthPageState extends State<AuthPage> {
   Future<void> _submit(AuthProvider auth) async {
     FocusScope.of(context).unfocus();
     if (isLogin) {
-      await auth.signIn(emailController.text.trim(), passwordController.text.trim());
+      await auth.signIn(
+        emailController.text.trim(),
+        passwordController.text.trim(),
+      );
     } else {
-      await auth.signUp(emailController.text.trim(), passwordController.text.trim());
+      await auth.signUp(
+        emailController.text.trim(),
+        passwordController.text.trim(),
+      );
     }
   }
 
@@ -59,8 +66,12 @@ class _AuthPageState extends State<AuthPage> {
                   child: Text(isLogin ? 'Se connecter' : 'Créer un compte'),
                 ),
                 TextButton(
-                  onPressed: auth.isLoading ? null : () => setState(() => isLogin = !isLogin),
-                  child: Text(isLogin ? 'Créer un compte' : 'Déjà inscrit ? Se connecter'),
+                  onPressed: auth.isLoading
+                      ? null
+                      : () => setState(() => isLogin = !isLogin),
+                  child: Text(
+                    isLogin ? 'Créer un compte' : 'Déjà inscrit ? Se connecter',
+                  ),
                 ),
                 if (auth.errorMessage != null)
                   Padding(
