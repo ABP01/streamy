@@ -25,6 +25,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LiveProvider()),
       ],
       child: MaterialApp(
+        debugShowCheckedModeBanner: false,
         title: 'Streamy',
         theme: ThemeData.dark(),
         home: const HomePage(),

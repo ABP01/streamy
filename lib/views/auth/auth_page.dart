@@ -14,6 +14,7 @@ class _AuthPageState extends State<AuthPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool isLogin = true;
+  String? localError;
 
   @override
   void dispose() {
@@ -24,16 +25,25 @@ class _AuthPageState extends State<AuthPage> {
 
   Future<void> _submit(AuthProvider auth) async {
     FocusScope.of(context).unfocus();
-    if (isLogin) {
-      await auth.signIn(
-        emailController.text.trim(),
-        passwordController.text.trim(),
+    setState(() => localError = null);
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() => localError = 'Veuillez entrer un email valide.');
+      return;
+    }
+    if (password.length < 6) {
+      setState(
+        () =>
+            localError = 'Le mot de passe doit contenir au moins 6 caractères.',
       );
-    } else {
-      await auth.signUp(
-        emailController.text.trim(),
-        passwordController.text.trim(),
-      );
+      return;
+    }
+    final success = isLogin
+        ? await auth.signIn(email, password)
+        : await auth.signUp(email, password);
+    if (success) {
+      // La navigation est gérée par HomePage via auth.user
     }
   }
 
@@ -73,6 +83,14 @@ class _AuthPageState extends State<AuthPage> {
                     isLogin ? 'Créer un compte' : 'Déjà inscrit ? Se connecter',
                   ),
                 ),
+                if (localError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Text(
+                      localError!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
                 if (auth.errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),

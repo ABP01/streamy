@@ -14,7 +14,7 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  Future<void> signIn(String email, String password) async {
+  Future<bool> signIn(String email, String password) async {
     isLoading = true;
     errorMessage = null;
     notifyListeners();
@@ -24,17 +24,26 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
       if (res.session == null) {
-        errorMessage = res
-            .toString(); // fallback, affichera le contenu de la réponse
+        errorMessage = _extractError(res);
+        isLoading = false;
+        notifyListeners();
+        return false;
       }
+      user = res.user;
+      isLoading = false;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      errorMessage = e.message;
     } catch (e) {
       errorMessage = e.toString();
     }
     isLoading = false;
     notifyListeners();
+    return false;
   }
 
-  Future<void> signUp(String email, String password) async {
+  Future<bool> signUp(String email, String password) async {
     isLoading = true;
     errorMessage = null;
     notifyListeners();
@@ -43,15 +52,24 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
       );
-      if (res.session == null && res.user == null) {
-        errorMessage = res
-            .toString(); // fallback, affichera le contenu de la réponse
+      if (res.user == null) {
+        errorMessage = _extractError(res);
+        isLoading = false;
+        notifyListeners();
+        return false;
       }
+      user = res.user;
+      isLoading = false;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      errorMessage = e.message;
     } catch (e) {
       errorMessage = e.toString();
     }
     isLoading = false;
     notifyListeners();
+    return false;
   }
 
   Future<void> signOut() async {
@@ -59,5 +77,10 @@ class AuthProvider extends ChangeNotifier {
     user = null;
     errorMessage = null;
     notifyListeners();
+  }
+
+  String? _extractError(dynamic res) {
+    if (res.error != null) return res.error.message;
+    return res.toString();
   }
 }
