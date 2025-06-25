@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/live_provider.dart';
@@ -80,29 +79,29 @@ class HomePage extends StatelessWidget {
                           onPressed: () async {
                             final title = titleController.text.trim();
                             if (title.isNotEmpty) {
-                              final channelId = const Uuid().v4();
-                              await liveProvider.createLive(
+                              await liveProvider.createLiveWithChannel(
                                 title,
-                                channelId,
                                 auth.user!.id,
                               );
                               if (liveProvider.errorMessage != null) {
                                 // Affiche l'erreur si la création échoue
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      liveProvider.errorMessage!,
-                                      style: const TextStyle(
-                                        color: Colors.white,
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        liveProvider.errorMessage!,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
                                       ),
+                                      backgroundColor: Colors.red,
                                     ),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
+                                  );
+                                }
                               } else {
                                 // Rafraîchit la liste après création
                                 await liveProvider.fetchLives();
-                                Navigator.pop(context);
+                                if (context.mounted) Navigator.pop(context);
                               }
                             }
                           },

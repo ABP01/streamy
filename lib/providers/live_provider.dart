@@ -43,4 +43,50 @@ class LiveProvider extends ChangeNotifier {
     isLoading = false;
     notifyListeners();
   }
+
+  Future<void> ensureUserExists(String userId) async {
+    try {
+      final res = await Supabase.instance.client
+          .from('users')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+      if (res == null) {
+        await Supabase.instance.client.from('users').insert({'id': userId});
+      }
+    } catch (e) {
+      errorMessage = e.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<String?> createChannel(String name, String ownerId) async {
+    await ensureUserExists(ownerId);
+    try {
+      final res = await Supabase.instance.client
+          .from('channels')
+          .insert({'name': name, 'owner_id': ownerId})
+          .select()
+          .single();
+      return res['id'] as String?;
+    } catch (e) {
+      errorMessage = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<void> createLiveWithChannel(String title, String ownerId) async {
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
+    final channelId = await createChannel(title, ownerId);
+    if (channelId == null) {
+      isLoading = false;
+      errorMessage ??= "Erreur lors de la création du channel.";
+      notifyListeners();
+      return;
+    }
+    await createLive(title, channelId, ownerId);
+  }
 }
