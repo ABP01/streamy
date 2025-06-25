@@ -29,13 +29,39 @@ class _LivePageState extends State<LivePage> {
   RtcEngine? _engine;
   late AgoraTokenService _tokenService;
   String? _agoraToken;
-  String? _error; // Ajout d'un état d'erreur global
+  String? _error;
+  bool _isMuted = false;
+  bool _isFrontCamera = true;
+  int _viewerCount = 1;
 
   @override
   void initState() {
     super.initState();
     _tokenService = AgoraTokenService(Env.backendUrl!);
     _initAgora();
+  }
+
+  Future<void> _renewToken() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    try {
+      final tokenData = await _tokenService.fetchAgoraToken(
+        channelName: widget.channelId,
+        supabaseAccessToken: auth.accessToken ?? '',
+        isBroadcaster: widget.isHost,
+      );
+      if (!mounted) return;
+      final newToken = tokenData?['token'] ?? '';
+      if (newToken.isNotEmpty && _engine != null) {
+        await _engine!.renewToken(newToken);
+        setState(() {
+          _agoraToken = newToken;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = "Erreur lors du renouvellement du token Agora : $e";
+      });
+    }
   }
 
   Future<void> _initAgora() async {
@@ -51,20 +77,24 @@ class _LivePageState extends State<LivePage> {
       final uid = tokenData?['uid'] ?? 0;
       if (_agoraToken == null || _agoraToken!.isEmpty) {
         setState(() {
-          _error = "Impossible de récupérer le token Agora. Veuillez réessayer.";
+          _error =
+              "Impossible de récupérer le token Agora. Veuillez réessayer.";
         });
         return;
       }
       final engine = createAgoraRtcEngine();
-      await engine.initialize(RtcEngineContext(
-        appId: Env.agoraAppId!,
-        channelProfile: ChannelProfileType.channelProfileLiveBroadcasting, // Mode live broadcasting
-      ));
+      await engine.initialize(
+        RtcEngineContext(
+          appId: Env.agoraAppId!,
+          channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
+        ),
+      );
       await engine.enableVideo();
       await engine.enableAudio();
-      // Attribution du rôle
       await engine.setClientRole(
-        role: widget.isHost ? ClientRoleType.clientRoleBroadcaster : ClientRoleType.clientRoleAudience,
+        role: widget.isHost
+            ? ClientRoleType.clientRoleBroadcaster
+            : ClientRoleType.clientRoleAudience,
       );
       engine.registerEventHandler(
         RtcEngineEventHandler(
@@ -74,11 +104,17 @@ class _LivePageState extends State<LivePage> {
           },
           onUserJoined: (connection, uid, _) {
             if (!mounted) return;
-            setState(() => _remoteUids.add(uid));
+            setState(() {
+              _remoteUids.add(uid);
+              _viewerCount = _remoteUids.length + 1;
+            });
           },
           onUserOffline: (connection, uid, reason) {
             if (!mounted) return;
-            setState(() => _remoteUids.remove(uid));
+            setState(() {
+              _remoteUids.remove(uid);
+              _viewerCount = _remoteUids.length + 1;
+            });
           },
           onError: (err, msg) {
             if (!mounted) return;
@@ -87,10 +123,7 @@ class _LivePageState extends State<LivePage> {
             });
           },
           onTokenPrivilegeWillExpire: (connection, token) async {
-            // Gestion du renouvellement de token (à implémenter côté backend si besoin)
-            setState(() {
-              _error = "Le token Agora va expirer. Veuillez relancer le live.";
-            });
+            await _renewToken();
           },
         ),
       );
@@ -109,11 +142,30 @@ class _LivePageState extends State<LivePage> {
       if (!mounted) return;
       setState(() {
         _engine = engine;
+        _viewerCount = _remoteUids.length + 1;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = "Erreur lors de l'initialisation du live : $e";
+      });
+    }
+  }
+
+  void _toggleMute() async {
+    if (_engine != null) {
+      await _engine!.muteLocalAudioStream(!_isMuted);
+      setState(() {
+        _isMuted = !_isMuted;
+      });
+    }
+  }
+
+  void _switchCamera() async {
+    if (_engine != null) {
+      await _engine!.switchCamera();
+      setState(() {
+        _isFrontCamera = !_isFrontCamera;
       });
     }
   }
@@ -129,8 +181,61 @@ class _LivePageState extends State<LivePage> {
 
   @override
   Widget build(BuildContext context) {
+    String roleLabel = widget.isHost ? 'Host' : 'Viewer';
     return Scaffold(
-      appBar: AppBar(title: Text('Live: ${widget.channelId}')),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(
+                'Live: ${widget.channelId}',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+            SizedBox(width: 8),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: widget.isHost ? Colors.orange : Colors.blue,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                roleLabel,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            SizedBox(width: 8),
+            Icon(Icons.remove_red_eye, color: Colors.white70, size: 18),
+            SizedBox(width: 2),
+            Text(
+              '$_viewerCount',
+              style: TextStyle(color: Colors.white, fontSize: 15),
+            ),
+          ],
+        ),
+        actions: [
+          if (widget.isHost && _engine != null) ...[
+            IconButton(
+              icon: Icon(
+                _isMuted ? Icons.mic_off : Icons.mic,
+                color: Colors.white,
+              ),
+              tooltip: _isMuted ? 'Activer le micro' : 'Couper le micro',
+              onPressed: _toggleMute,
+            ),
+            IconButton(
+              icon: Icon(Icons.cameraswitch, color: Colors.white),
+              tooltip: 'Changer de caméra',
+              onPressed: _switchCamera,
+            ),
+          ],
+        ],
+      ),
       body: Stack(
         children: [
           if (_error != null)
@@ -152,6 +257,7 @@ class _LivePageState extends State<LivePage> {
                         _engine = null;
                         _localUid = null;
                         _remoteUids.clear();
+                        _viewerCount = 1;
                       });
                       _initAgora();
                     },
@@ -205,16 +311,18 @@ class _LivePageState extends State<LivePage> {
             // Chat overlay
             Align(
               alignment: Alignment.bottomCenter,
-              child: MultiProvider(
-                providers: [
-                  ChangeNotifierProvider(
-                    create: (_) => ChatProvider(widget.liveId),
-                  ),
-                  ChangeNotifierProvider(
-                    create: (_) => ReactionProvider(widget.liveId),
-                  ),
-                ],
-                child: _ChatAndReactionWidget(isHost: widget.isHost),
+              child: Builder(
+                builder: (context) => MultiProvider(
+                  providers: [
+                    ChangeNotifierProvider(
+                      create: (_) => ChatProvider(widget.liveId),
+                    ),
+                    ChangeNotifierProvider(
+                      create: (_) => ReactionProvider(widget.liveId),
+                    ),
+                  ],
+                  child: _ChatAndReactionWidget(isHost: widget.isHost),
+                ),
               ),
             ),
           ],
@@ -344,32 +452,42 @@ class _ChatAndReactionWidgetState extends State<_ChatAndReactionWidget> {
                       hintStyle: TextStyle(color: Colors.white54),
                       border: InputBorder.none,
                     ),
+                    onSubmitted: (value) async {
+                      if (_error != null || value.trim().isEmpty) return;
+                      await chat.sendMessage(auth.user?.id ?? '', value.trim());
+                      _controller.clear();
+                    },
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.send, color: Colors.white),
                   onPressed: () async {
+                    if (_error != null || _controller.text.trim().isEmpty)
+                      return;
                     await chat.sendMessage(
                       auth.user?.id ?? '',
-                      _controller.text,
+                      _controller.text.trim(),
                     );
                     _controller.clear();
                   },
                 ),
                 IconButton(
                   icon: const Icon(Icons.favorite, color: Colors.pinkAccent),
-                  onPressed: () =>
-                      reaction.sendReaction(auth.user?.id ?? '', '❤️'),
+                  onPressed: _error != null
+                      ? null
+                      : () => reaction.sendReaction(auth.user?.id ?? '', '❤️'),
                 ),
                 IconButton(
                   icon: const Icon(Icons.thumb_up, color: Colors.lightBlue),
-                  onPressed: () =>
-                      reaction.sendReaction(auth.user?.id ?? '', '👍'),
+                  onPressed: _error != null
+                      ? null
+                      : () => reaction.sendReaction(auth.user?.id ?? '', '👍'),
                 ),
                 IconButton(
                   icon: const Icon(Icons.thumb_down, color: Colors.redAccent),
-                  onPressed: () =>
-                      reaction.sendReaction(auth.user?.id ?? '', '👎'),
+                  onPressed: _error != null
+                      ? null
+                      : () => reaction.sendReaction(auth.user?.id ?? '', '👎'),
                 ),
               ],
             ),
