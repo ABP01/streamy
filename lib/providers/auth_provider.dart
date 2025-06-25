@@ -15,6 +15,26 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
+  Future<void> syncUserToTable() async {
+    if (user == null) return;
+    try {
+      final res = await Supabase.instance.client
+          .from('users')
+          .select('id')
+          .eq('id', user!.id)
+          .maybeSingle();
+      if (res == null) {
+        await Supabase.instance.client.from('users').insert({
+          'id': user!.id,
+          'email': user!.email,
+          'created_at': user!.createdAt,
+        });
+      }
+    } catch (e) {
+      // Optionnel: log ou notifier
+    }
+  }
+
   Future<bool> signIn(String email, String password) async {
     isLoading = true;
     errorMessage = null;
@@ -34,6 +54,7 @@ class AuthProvider extends ChangeNotifier {
       }
       user = res.user;
       accessToken = res.session?.accessToken;
+      await syncUserToTable();
       isLoading = false;
       notifyListeners();
       return true;
@@ -66,6 +87,7 @@ class AuthProvider extends ChangeNotifier {
       }
       user = res.user;
       accessToken = res.session?.accessToken;
+      await syncUserToTable();
       isLoading = false;
       notifyListeners();
       return true;
