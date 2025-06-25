@@ -25,14 +25,17 @@ class _AuthPageState extends State<AuthPage> {
 
   Future<void> _submit(AuthProvider auth) async {
     FocusScope.of(context).unfocus();
+    if (!mounted) return;
     setState(() => localError = null);
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
+      if (!mounted) return;
       setState(() => localError = 'Veuillez entrer un email valide.');
       return;
     }
     if (password.length < 6) {
+      if (!mounted) return;
       setState(
         () =>
             localError = 'Le mot de passe doit contenir au moins 6 caractères.',
@@ -42,6 +45,7 @@ class _AuthPageState extends State<AuthPage> {
     final success = isLogin
         ? await auth.signIn(email, password)
         : await auth.signUp(email, password);
+    if (!mounted) return;
     if (success) {
       setState(() {
         localError = null;
@@ -51,6 +55,7 @@ class _AuthPageState extends State<AuthPage> {
         auth.errorMessage = null;
       }
     } else if (auth.errorMessage != null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -64,6 +69,7 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   void _toggleMode(AuthProvider auth) {
+    if (!mounted) return;
     setState(() {
       isLogin = !isLogin;
       localError = null;

@@ -26,9 +26,10 @@ class LivePage extends StatefulWidget {
 class _LivePageState extends State<LivePage> {
   int? _localUid;
   final List<int> _remoteUids = [];
-  late final RtcEngine _engine;
+  RtcEngine? _engine;
   late AgoraTokenService _tokenService;
   String? _agoraToken;
+  String? _error; // Ajout d'un état d'erreur global
 
   @override
   void initState() {
@@ -39,41 +40,90 @@ class _LivePageState extends State<LivePage> {
 
   Future<void> _initAgora() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final tokenData = await _tokenService.fetchAgoraToken(
-      channelName: widget.channelId,
-      supabaseAccessToken: auth.accessToken ?? '',
-      isBroadcaster: widget.isHost,
-    );
-    _agoraToken = tokenData?['token'] ?? '';
-    final uid = tokenData?['uid'] ?? 0;
-    _engine = createAgoraRtcEngine();
-    await _engine.initialize(RtcEngineContext(appId: Env.agoraAppId!));
-    await _engine.enableVideo();
-    _engine.registerEventHandler(
-      RtcEngineEventHandler(
-        onJoinChannelSuccess: (connection, uid) {
-          setState(() => _localUid = uid);
-        },
-        onUserJoined: (connection, uid, _) {
-          setState(() => _remoteUids.add(uid));
-        },
-        onUserOffline: (connection, uid, reason) {
-          setState(() => _remoteUids.remove(uid));
-        },
-      ),
-    );
-    await _engine.joinChannel(
-      token: _agoraToken ?? '',
-      channelId: widget.channelId,
-      uid: uid,
-      options: const ChannelMediaOptions(),
-    );
+    try {
+      final tokenData = await _tokenService.fetchAgoraToken(
+        channelName: widget.channelId,
+        supabaseAccessToken: auth.accessToken ?? '',
+        isBroadcaster: widget.isHost,
+      );
+      if (!mounted) return;
+      _agoraToken = tokenData?['token'] ?? '';
+      final uid = tokenData?['uid'] ?? 0;
+      if (_agoraToken == null || _agoraToken!.isEmpty) {
+        setState(() {
+          _error = "Impossible de récupérer le token Agora. Veuillez réessayer.";
+        });
+        return;
+      }
+      final engine = createAgoraRtcEngine();
+      await engine.initialize(RtcEngineContext(
+        appId: Env.agoraAppId!,
+        channelProfile: ChannelProfileType.channelProfileLiveBroadcasting, // Mode live broadcasting
+      ));
+      await engine.enableVideo();
+      await engine.enableAudio();
+      // Attribution du rôle
+      await engine.setClientRole(
+        role: widget.isHost ? ClientRoleType.clientRoleBroadcaster : ClientRoleType.clientRoleAudience,
+      );
+      engine.registerEventHandler(
+        RtcEngineEventHandler(
+          onJoinChannelSuccess: (connection, uid) {
+            if (!mounted) return;
+            setState(() => _localUid = uid);
+          },
+          onUserJoined: (connection, uid, _) {
+            if (!mounted) return;
+            setState(() => _remoteUids.add(uid));
+          },
+          onUserOffline: (connection, uid, reason) {
+            if (!mounted) return;
+            setState(() => _remoteUids.remove(uid));
+          },
+          onError: (err, msg) {
+            if (!mounted) return;
+            setState(() {
+              _error = "Erreur Agora: $msg ($err)";
+            });
+          },
+          onTokenPrivilegeWillExpire: (connection, token) async {
+            // Gestion du renouvellement de token (à implémenter côté backend si besoin)
+            setState(() {
+              _error = "Le token Agora va expirer. Veuillez relancer le live.";
+            });
+          },
+        ),
+      );
+      await engine.joinChannel(
+        token: _agoraToken ?? '',
+        channelId: widget.channelId,
+        uid: uid,
+        options: ChannelMediaOptions(
+          clientRoleType: widget.isHost
+              ? ClientRoleType.clientRoleBroadcaster
+              : ClientRoleType.clientRoleAudience,
+          publishCameraTrack: widget.isHost,
+          publishMicrophoneTrack: widget.isHost,
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _engine = engine;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = "Erreur lors de l'initialisation du live : $e";
+      });
+    }
   }
 
   @override
   void dispose() {
-    _engine.leaveChannel();
-    _engine.release();
+    if (_engine != null) {
+      _engine!.leaveChannel();
+      _engine!.release();
+    }
     super.dispose();
   }
 
@@ -83,58 +133,91 @@ class _LivePageState extends State<LivePage> {
       appBar: AppBar(title: Text('Live: ${widget.channelId}')),
       body: Stack(
         children: [
-          // Vidéo principale (remote ou local)
-          Positioned.fill(
-            child: _remoteUids.isNotEmpty
-                ? AgoraVideoView(
-                    controller: VideoViewController.remote(
-                      rtcEngine: _engine,
-                      canvas: VideoCanvas(uid: _remoteUids.first),
-                      connection: RtcConnection(channelId: widget.channelId),
-                    ),
-                  )
-                : AgoraVideoView(
-                    controller: VideoViewController(
-                      rtcEngine: _engine,
-                      canvas: const VideoCanvas(uid: 0),
-                    ),
+          if (_error != null)
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error, color: Colors.red, size: 48),
+                  SizedBox(height: 12),
+                  Text(
+                    _error!,
+                    style: TextStyle(color: Colors.red, fontSize: 16),
                   ),
-          ),
-          // Miniature de la propre vidéo (si remote présent)
-          if (_remoteUids.isNotEmpty)
-            Positioned(
-              right: 16,
-              top: 16,
-              width: 120,
-              height: 180,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: AgoraVideoView(
-                  controller: VideoViewController(
-                    rtcEngine: _engine,
-                    canvas: VideoCanvas(uid: _localUid ?? 0),
+                  SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _error = null;
+                        _engine = null;
+                        _localUid = null;
+                        _remoteUids.clear();
+                      });
+                      _initAgora();
+                    },
+                    child: Text('Réessayer'),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            // Vidéo principale (remote ou local)
+            Positioned.fill(
+              child: _engine == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : (_remoteUids.isNotEmpty
+                        ? AgoraVideoView(
+                            controller: VideoViewController.remote(
+                              rtcEngine: _engine!,
+                              canvas: VideoCanvas(uid: _remoteUids.first),
+                              connection: RtcConnection(
+                                channelId: widget.channelId,
+                              ),
+                            ),
+                          )
+                        : AgoraVideoView(
+                            controller: VideoViewController(
+                              rtcEngine: _engine!,
+                              canvas: const VideoCanvas(uid: 0),
+                            ),
+                          )),
+            ),
+            // Miniature de la propre vidéo (si remote présent)
+            if (_remoteUids.isNotEmpty && _engine != null)
+              Positioned(
+                right: 16,
+                top: 16,
+                width: 120,
+                height: 180,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AgoraVideoView(
+                    controller: VideoViewController(
+                      rtcEngine: _engine!,
+                      canvas: VideoCanvas(uid: _localUid ?? 0),
+                    ),
                   ),
                 ),
               ),
+            // Message si personne n'est connecté
+            if (_remoteUids.isEmpty && _localUid == null)
+              const Center(child: CircularProgressIndicator()),
+            // Chat overlay
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: MultiProvider(
+                providers: [
+                  ChangeNotifierProvider(
+                    create: (_) => ChatProvider(widget.liveId),
+                  ),
+                  ChangeNotifierProvider(
+                    create: (_) => ReactionProvider(widget.liveId),
+                  ),
+                ],
+                child: _ChatAndReactionWidget(isHost: widget.isHost),
+              ),
             ),
-          // Message si personne n'est connecté
-          if (_remoteUids.isEmpty && _localUid == null)
-            const Center(child: CircularProgressIndicator()),
-          // Chat overlay
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: MultiProvider(
-              providers: [
-                ChangeNotifierProvider(
-                  create: (_) => ChatProvider(widget.liveId),
-                ),
-                ChangeNotifierProvider(
-                  create: (_) => ReactionProvider(widget.liveId),
-                ),
-              ],
-              child: _ChatAndReactionWidget(isHost: widget.isHost),
-            ),
-          ),
+          ],
         ],
       ),
     );
@@ -151,6 +234,7 @@ class _ChatAndReactionWidget extends StatefulWidget {
 
 class _ChatAndReactionWidgetState extends State<_ChatAndReactionWidget> {
   final TextEditingController _controller = TextEditingController();
+  String? _error;
   @override
   void dispose() {
     _controller.dispose();
@@ -169,6 +253,28 @@ class _ChatAndReactionWidgetState extends State<_ChatAndReactionWidget> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.error, color: Colors.red),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(_error!, style: TextStyle(color: Colors.red)),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.refresh, color: Colors.white),
+                      onPressed: () {
+                        setState(() => _error = null);
+                        // On relance la récupération des messages/réactions en réinitialisant le provider
+                        // (on peut appeler notifyListeners ou re-créer le provider si besoin)
+                        // Ici, on force juste la reconstruction du widget, ce qui relancera les streams
+                      },
+                    ),
+                  ],
+                ),
+              ),
             // Affichage des réactions récentes animées
             SizedBox(
               height: 40,
