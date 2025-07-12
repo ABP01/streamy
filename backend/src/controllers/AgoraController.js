@@ -100,8 +100,8 @@ class AgoraController {
         });
       }
 
-      // Générer un nom de canal basé sur le liveId
-      const channelName = `live_${liveId}`;
+      // Utiliser directement le liveId comme nom de canal (il contient déjà le préfixe live_)
+      const channelName = liveId;
       const uid = this.generateUidFromString(userId);
 
       let tokenData;
