@@ -5,11 +5,25 @@ import 'package:uuid/uuid.dart';
 
 import 'config/app_config.dart';
 import 'models/live_stream.dart';
+import 'services/agora_backend_service.dart';
+import 'services/agora_debug_service.dart';
+import 'services/agora_error_handler.dart';
 import 'services/auth_service.dart';
 import 'services/live_stream_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Test de la configuration Agora en mode debug
+  AgoraDebugService.testAgoraConfig();
+  
+  // Test de connexion au backend
+  final backendHealthy = await AgoraBackendService.testConnection();
+  if (backendHealthy) {
+    print('✅ Backend connecté et opérationnel');
+  } else {
+    print('⚠️ Backend non accessible - fonctionnement en mode dégradé');
+  }
 
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
@@ -626,6 +640,7 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
       _engine.registerEventHandler(
         RtcEngineEventHandler(
           onJoinChannelSuccess: (connection, elapsed) {
+            AgoraErrorHandler.resetReconnectionAttempts(); // Réinitialiser le compteur
             setState(() {
               _joined = true;
               _agoraError = null;
@@ -642,17 +657,59 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
             });
           },
           onError: (err, msg) {
+            AgoraDebugService.logAgoraError(err, msg);
+            final errorMessage = AgoraErrorHandler.getErrorMessage(err);
             setState(() {
-              _agoraError = 'Erreur Agora ($err): $msg';
+              _agoraError = errorMessage;
             });
+
+            // Reconnexion automatique pour les erreurs de token (avec limite)
+            if (AgoraErrorHandler.isTokenRelatedError(err) &&
+                AgoraErrorHandler.canAttemptReconnection()) {
+              AgoraErrorHandler.incrementReconnectionAttempts();
+              _handleTokenError();
+            } else if (AgoraErrorHandler.isTokenRelatedError(err)) {
+              setState(() {
+                _agoraError =
+                    'Trop de tentatives de reconnexion. Mode sans token recommandé.';
+              });
+            }
           },
         ),
       );
 
       await _engine.enableVideo();
+
+      // Obtenir le token pour ce spectateur
+      final liveService = LiveStreamService();
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      final token = await liveService.getViewerToken(
+        widget.live.id,
+        currentUser?.id ?? 'anonymous',
+      );
+
+      // Debug pour diagnostiquer les problèmes de token
+      AgoraDebugService.debugTokenIssue(token, widget.live.id);
+
+      // Générer un token via le backend pour le viewer
+      String finalToken = '';
+      if (AppConfig.useAgoraToken) {
+        try {
+          final backendToken = await AgoraBackendService.getViewerToken(
+            liveId: widget.live.agoraChannelId ?? widget.live.id,
+            userId: Supabase.instance.client.auth.currentUser?.id ?? 'anonymous',
+          );
+          finalToken = backendToken.token;
+          print('✅ Token viewer obtenu via backend pour ${widget.live.agoraChannelId}');
+        } catch (e) {
+          print('⚠️ Erreur token backend, utilisation du token existant: $e');
+          finalToken = token;
+        }
+      }
+
       await _engine.joinChannel(
-        token: '', // Token à implémenter pour la production
-        channelId: widget.live.id,
+        token: finalToken,
+        channelId: widget.live.agoraChannelId ?? widget.live.id,
         uid: 0,
         options: const ChannelMediaOptions(
           clientRoleType: ClientRoleType.clientRoleAudience,
@@ -696,6 +753,53 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Commentaires - À implémenter')),
     );
+  }
+
+  Future<void> _handleTokenError() async {
+    try {
+      // Si on est en mode sans token, ne pas essayer de renouveler
+      if (!AppConfig.useAgoraToken) {
+        debugPrint('Mode sans token activé - pas de renouvellement nécessaire');
+        setState(() {
+          _agoraError =
+              'Mode test sans token. Vérifiez la configuration Agora.';
+        });
+        return;
+      }
+
+      debugPrint('Token invalide, tentative de renouvellement...');
+
+      // Quitter le canal actuel
+      await _engine.leaveChannel();
+
+      // Obtenir un nouveau token
+      final liveService = LiveStreamService();
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      final newToken = await liveService.getViewerToken(
+        widget.live.id,
+        currentUser?.id ?? 'anonymous',
+      );
+
+      // Rejoindre avec le nouveau token
+      final finalNewToken = (AppConfig.useAgoraToken && newToken.isNotEmpty)
+          ? newToken
+          : '';
+      await _engine.joinChannel(
+        token: finalNewToken,
+        channelId: widget.live.agoraChannelId ?? widget.live.id,
+        uid: 0,
+        options: const ChannelMediaOptions(
+          clientRoleType: ClientRoleType.clientRoleAudience,
+        ),
+      );
+
+      debugPrint('Reconnexion réussie avec le nouveau token');
+    } catch (e) {
+      debugPrint('Erreur lors de la reconnexion: $e');
+      setState(() {
+        _agoraError = 'Impossible de se reconnecter. Vérifiez votre connexion.';
+      });
+    }
   }
 
   @override
@@ -1103,6 +1207,8 @@ class _StartLivePageState extends State<StartLivePage> {
         'category': _selectedCategory,
         'is_live': true,
         'started_at': DateTime.now().toIso8601String(),
+        'agora_channel_id': 'live_$liveId',
+        'agora_token': AppConfig.useAgoraToken ? 'temp_token' : null,
         'viewer_count': 0,
         'like_count': 0,
         'gift_count': 0,
@@ -1366,7 +1472,6 @@ class _StartLivePageState extends State<StartLivePage> {
                           onPressed: _isLoading ? null : _createLive,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFF667eea),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -1460,9 +1565,29 @@ class _HostLivePageState extends State<HostLivePage> {
 
       await _engine.enableVideo();
       await _engine.startPreview();
+
+      // Utiliser le token généré lors de la création du live
+      final token = widget.live.agoraToken ?? '';
+
+      // Générer un token via le backend pour l'hôte  
+      String finalToken = '';
+      if (AppConfig.useAgoraToken) {
+        try {
+          final backendToken = await AgoraBackendService.getHostToken(
+            liveId: widget.live.agoraChannelId ?? widget.live.id,
+            userId: Supabase.instance.client.auth.currentUser?.id ?? 'host',
+          );
+          finalToken = backendToken.token;
+          print('✅ Token hôte obtenu via backend pour ${widget.live.agoraChannelId}');
+        } catch (e) {
+          print('⚠️ Erreur token backend, utilisation du token existant: $e');
+          finalToken = token;
+        }
+      }
+
       await _engine.joinChannel(
-        token: '', // Token à implémenter pour la production
-        channelId: widget.live.id,
+        token: finalToken,
+        channelId: widget.live.agoraChannelId ?? widget.live.id,
         uid: 0,
         options: const ChannelMediaOptions(
           clientRoleType: ClientRoleType.clientRoleBroadcaster,

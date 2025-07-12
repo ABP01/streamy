@@ -1,7 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../config/app_config.dart';
 import '../models/live_stream.dart';
+import 'agora_backend_service.dart';
 
 class LiveStreamService {
   static final _supabase = Supabase.instance.client;
@@ -61,7 +63,7 @@ class LiveStreamService {
     }).toList();
   }
 
-  // --- Créer un nouveau live ---
+  // --- Créer un nouveau live avec token Agora ---
   Future<LiveStream> createLiveStream({
     required String title,
     required String hostId,
@@ -72,6 +74,19 @@ class LiveStreamService {
     int maxViewers = 1000,
   }) async {
     final id = _uuid.v4();
+    // En mode test, utiliser le canal de test d'Agora
+    final agoraChannelId = 'live_$id';
+
+    // Générer le token Agora pour l'hôte si nécessaire
+    String? agoraToken;
+    if (AppConfig.useAgoraToken) {
+      agoraToken = await generateAgoraToken(
+        liveId: agoraChannelId,
+        userId: hostId,
+        isHost: true,
+      );
+    }
+
     final response = await _supabase
         .from('lives')
         .insert({
@@ -85,7 +100,8 @@ class LiveStreamService {
           'max_viewers': maxViewers,
           'is_live': true,
           'started_at': DateTime.now().toIso8601String(),
-          'agora_channel_id': 'live_$id',
+          'agora_channel_id': agoraChannelId,
+          'agora_token': agoraToken,
           'viewer_count': 0,
           'like_count': 0,
           'gift_count': 0,
@@ -232,6 +248,109 @@ class LiveStreamService {
             activeViewers: live['viewer_count'],
           );
         });
+  }
+
+  // --- Générer un token Agora pour un canal ---
+  Future<String> generateAgoraToken({
+    required String liveId,
+    required String userId,
+    bool isHost = false,
+  }) async {
+    if (!AppConfig.useAgoraToken) {
+      return '';
+    }
+    try {
+      if (isHost) {
+        final response = await AgoraBackendService.getHostToken(
+          liveId: liveId,
+          userId: userId,
+        );
+        return response.token;
+      } else {
+        final response = await AgoraBackendService.getViewerToken(
+          liveId: liveId,
+          userId: userId,
+        );
+        return response.token;
+      }
+    } catch (e) {
+      print('Erreur lors de la récupération du token Agora via backend: $e');
+      return '';
+    }
+  }
+
+  // --- Obtenir un token pour rejoindre un live en tant que spectateur ---
+  Future<String> getViewerToken(String liveId, String userId) async {
+    try {
+      // Si les tokens ne sont pas requis en mode dev, retourner immédiatement
+      if (!AppConfig.useAgoraToken) {
+        print('Mode sans token activé - retour token vide');
+        return '';
+      }
+
+      // Récupérer les informations du live
+      final response = await _supabase
+          .from('lives')
+          .select('agora_channel_id, id')
+          .eq('id', liveId)
+          .single();
+
+      final channelId =
+          response['agora_channel_id'] as String? ?? response['id'] as String;
+
+      // Générer un token pour le spectateur
+      return generateAgoraToken(
+        liveId: channelId,
+        userId: userId,
+        isHost: false,
+      );
+    } catch (e) {
+      print('Erreur lors de la récupération du token spectateur: $e');
+
+      // En cas d'erreur, retourner un token vide en mode dev
+      if (!AppConfig.useAgoraToken) {
+        return '';
+      }
+
+      // En production, lever l'erreur
+      throw e;
+    }
+  }
+
+  // --- Renouveler le token Agora d'un live ---
+  Future<String> renewAgoraToken(
+    String liveId,
+    String userId, {
+    bool isHost = false,
+  }) async {
+    try {
+      final response = await _supabase
+          .from('lives')
+          .select('agora_channel_id')
+          .eq('id', liveId)
+          .single();
+
+      final channelId = response['agora_channel_id'] as String;
+
+      final newToken = generateAgoraToken(
+        liveId: channelId,
+        userId: userId,
+        isHost: isHost,
+      );
+
+      // Mettre à jour le token dans la base de données si c'est l'hôte
+      if (isHost) {
+        await _supabase
+            .from('lives')
+            .update({'agora_token': newToken})
+            .eq('id', liveId);
+      }
+
+      return newToken;
+    } catch (e) {
+      print('Erreur lors du renouvellement du token: $e');
+      return '';
+    }
   }
 
   // --- Méthodes internes ---

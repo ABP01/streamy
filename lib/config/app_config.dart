@@ -8,6 +8,9 @@ class AppConfig {
       ? '28918fa47b4042c28f962d26dc5f27dd'
       : 'YOUR_AGORA_APP_ID_PROD';
 
+  // Mode de développement : désactiver l'authentification par token
+  static const bool useAgoraToken = true;
+
   // Configuration Supabase
   static const String supabaseUrl = kDebugMode
       ? 'https://mgesuowulhtfumurrhvx.supabase.co'

@@ -1,0 +1,27 @@
+{
+  "name": "streamy-backend",
+  "version": "1.0.0",
+  "description": "Backend API pour l'application Streamy - Streaming live avec Agora RTC",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["streaming", "agora", "live", "nodejs", "api"],
+  "author": "Streamy Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "dotenv": "^16.3.1",
+    "agora-token": "^2.0.4",
+    "express-validator": "^7.0.1",
+    "compression": "^1.7.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
