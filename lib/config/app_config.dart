@@ -12,13 +12,9 @@ class AppConfig {
   static const bool useAgoraToken = true;
 
   // Configuration Supabase
-  static const String supabaseUrl = kDebugMode
-      ? 'https://mgesuowulhtfumurrhvx.supabase.co'
-      : 'https://your-prod-supabase-url.supabase.co';
-
-  static const String supabaseAnonKey = kDebugMode
-      ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nZXN1b3d1bGh0ZnVtdXJyaHZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMDg5NzksImV4cCI6MjA2Nzg4NDk3OX0.pydGfp6050RqPMA0uNbGyDnssbIW88b5ESZMwk2DSG0'
-      : 'your-prod-anon-key';
+  static const String supabaseUrl = 'https://mgesuowulhtfumurrhvx.supabase.co';
+  static const String supabaseAnonKey =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nZXN1b3d1bGh0ZnVtdXJyaHZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMDg5NzksImV4cCI6MjA2Nzg4NDk3OX0.pydGfp6050RqPMA0uNbGyDnssbIW88b5ESZMwk2DSG0';
 
   // Configuration de l'app
   static const int maxConcurrentViewers = 1000;

@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import 'config/app_config.dart';
 import 'models/live_stream.dart';
+import 'screens/discover_screen.dart';
 import 'services/agora_backend_service.dart';
 import 'services/agora_debug_service.dart';
 import 'services/agora_error_handler.dart';
@@ -16,7 +17,7 @@ void main() async {
 
   // Test de la configuration Agora en mode debug
   AgoraDebugService.testAgoraConfig();
-  
+
   // Test de connexion au backend
   final backendHealthy = await AgoraBackendService.testConnection();
   if (backendHealthy) {
@@ -69,7 +70,7 @@ class AuthGate extends StatelessWidget {
         if (session == null) {
           return const AuthPage();
         } else {
-          return const LiveSwipePage();
+          return const DiscoverScreen();
         }
       },
     );
@@ -103,14 +104,59 @@ class _AuthPageState extends State<AuthPage> {
 
   Future<void> _authenticate() async {
     if (!mounted) return;
+
+    // Validation des champs
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final username = _usernameController.text.trim();
+
+    // Validation améliorée
+    if (email.isEmpty) {
+      setState(() {
+        _error = 'Veuillez entrer votre email';
+      });
+      return;
+    }
+
+    if (password.isEmpty) {
+      setState(() {
+        _error = 'Veuillez entrer votre mot de passe';
+      });
+      return;
+    }
+
+    if (_isSignUp && username.isEmpty) {
+      setState(() {
+        _error = 'Veuillez choisir un nom d\'utilisateur';
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      setState(() {
+        _error = 'Le mot de passe doit contenir au moins 6 caractères';
+      });
+      return;
+    }
+
+    if (_isSignUp && !email.contains('@')) {
+      setState(() {
+        _error = 'Adresse email invalide';
+      });
+      return;
+    }
+
+    if (_isSignUp && (username.length < 3 || username.length > 20)) {
+      setState(() {
+        _error = 'Le nom d\'utilisateur doit contenir entre 3 et 20 caractères';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _error = null;
     });
-
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-    final username = _usernameController.text.trim();
 
     try {
       if (_isSignUp) {
@@ -122,6 +168,18 @@ class _AuthPageState extends State<AuthPage> {
         );
         if (response.user != null) {
           await _createUserProfile(response.user!, username);
+
+          // Afficher un message de succès
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Compte créé avec succès ! Bienvenue sur Streamy !',
+                ),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
         }
       } else {
         await _authService.signIn(email: email, password: password);
@@ -129,13 +187,21 @@ class _AuthPageState extends State<AuthPage> {
     } on AuthException catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.message;
+        if (e.message.contains('Invalid login credentials')) {
+          _error = 'Email ou mot de passe incorrect';
+        } else if (e.message.contains('User already registered')) {
+          _error = 'Cet email est déjà utilisé';
+        } else {
+          _error = e.message;
+        }
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Une erreur inattendue s\'est produite';
+        _error =
+            'Une erreur inattendue s\'est produite. Vérifiez votre connexion internet.';
       });
+      debugPrint('Erreur d\'authentification: $e');
     } finally {
       if (!mounted) return;
       setState(() {
@@ -150,11 +216,47 @@ class _AuthPageState extends State<AuthPage> {
         'id': user.id,
         'email': user.email,
         'username': username.isNotEmpty ? username : null,
+        'full_name': username.isNotEmpty ? username : null,
         'tokens_balance': 100, // Tokens de bienvenue
+        'created_at': DateTime.now().toIso8601String(),
       });
     } catch (e) {
       debugPrint('Erreur lors de la création du profil: $e');
     }
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    bool obscureText = false,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      obscureText: obscureText,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+        prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.8)),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.1),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.white, width: 2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+        ),
+      ),
+    );
   }
 
   @override
@@ -165,7 +267,7 @@ class _AuthPageState extends State<AuthPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+            colors: [AppTheme.primaryColor, AppTheme.secondaryColor],
           ),
         ),
         child: SafeArea(
@@ -175,115 +277,124 @@ class _AuthPageState extends State<AuthPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo et titre
-                  const Icon(Icons.videocam, size: 80, color: Colors.white),
-                  const SizedBox(height: 16),
+                  // Logo animé
+                  TweenAnimationBuilder<double>(
+                    duration: const Duration(seconds: 1),
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    builder: (context, value, child) {
+                      return Transform.scale(
+                        scale: value,
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.white.withOpacity(0.2),
+                                blurRadius: 20,
+                                spreadRadius: 5,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.videocam,
+                            size: 60,
+                            color: Colors.white,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Titre
                   const Text(
                     'Streamy',
                     style: TextStyle(
-                      fontSize: 32,
+                      fontSize: 36,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
+                      letterSpacing: 1.5,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _isSignUp ? 'Créer un compte' : 'Connectez-vous',
-                    style: const TextStyle(fontSize: 18, color: Colors.white70),
+                    _isSignUp ? 'Créer un compte' : 'Bienvenue !',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
                   ),
                   const SizedBox(height: 48),
 
-                  // Formulaire
-                  Container(
+                  // Formulaire avec animation
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.2),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 20,
+                          spreadRadius: 0,
+                        ),
+                      ],
                     ),
                     child: Column(
                       children: [
+                        // Nom d'utilisateur (seulement pour l'inscription)
                         if (_isSignUp) ...[
-                          TextField(
+                          _buildTextField(
                             controller: _usernameController,
-                            decoration: InputDecoration(
-                              labelText: 'Nom d\'utilisateur',
-                              labelStyle: const TextStyle(
-                                color: Colors.white70,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: Colors.white30,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: Colors.white,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            style: const TextStyle(color: Colors.white),
+                            label: 'Nom d\'utilisateur',
+                            icon: Icons.person,
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                         ],
 
-                        TextField(
+                        // Email
+                        _buildTextField(
                           controller: _emailController,
-                          decoration: InputDecoration(
-                            labelText: 'Email',
-                            labelStyle: const TextStyle(color: Colors.white70),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: Colors.white30,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: Colors.white),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
+                          label: 'Email',
+                          icon: Icons.email,
                           keyboardType: TextInputType.emailAddress,
-                          style: const TextStyle(color: Colors.white),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
 
-                        TextField(
+                        // Mot de passe
+                        _buildTextField(
                           controller: _passwordController,
-                          decoration: InputDecoration(
-                            labelText: 'Mot de passe',
-                            labelStyle: const TextStyle(color: Colors.white70),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: Colors.white30,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: Colors.white),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
+                          label: 'Mot de passe',
+                          icon: Icons.lock,
                           obscureText: true,
-                          style: const TextStyle(color: Colors.white),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 30),
 
                         // Message d'erreur
                         if (_error != null) ...[
                           Container(
-                            padding: const EdgeInsets.all(12),
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: Colors.red.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: Colors.red.withOpacity(0.5),
                               ),
                             ),
                             child: Text(
                               _error!,
-                              style: const TextStyle(color: Colors.red),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -293,55 +404,99 @@ class _AuthPageState extends State<AuthPage> {
                         // Bouton principal
                         SizedBox(
                           width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
+                          height: 56,
+                          child: ElevatedButton.icon(
                             onPressed: _isLoading ? null : _authenticate,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFF667eea),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: _isLoading
+                            icon: _isLoading
                                 ? const SizedBox(
-                                    height: 20,
                                     width: 20,
+                                    height: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
+                                      color: AppTheme.primaryColor,
                                     ),
                                   )
-                                : Text(
-                                    _isSignUp
-                                        ? 'Créer un compte'
-                                        : 'Se connecter',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                : Icon(
+                                    _isSignUp ? Icons.person_add : Icons.login,
+                                    color: AppTheme.primaryColor,
                                   ),
+                            label: Text(
+                              _isSignUp ? 'Créer un compte' : 'Se connecter',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(28),
+                              ),
+                              elevation: 8,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
 
                         // Basculer entre connexion/inscription
                         TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _isSignUp = !_isSignUp;
-                              _error = null;
-                            });
-                          },
+                          onPressed: _isLoading
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _isSignUp = !_isSignUp;
+                                    _error = null;
+                                  });
+                                },
                           child: Text(
                             _isSignUp
                                 ? 'Déjà un compte ? Se connecter'
                                 : 'Pas de compte ? S\'inscrire',
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
+
+                  const SizedBox(height: 40),
+
+                  // Note de bienvenue
+                  if (_isSignUp)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                        ),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.celebration,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Obtenez 100 tokens gratuits en vous inscrivant !',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -697,10 +852,13 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
         try {
           final backendToken = await AgoraBackendService.getViewerToken(
             liveId: widget.live.agoraChannelId ?? widget.live.id,
-            userId: Supabase.instance.client.auth.currentUser?.id ?? 'anonymous',
+            userId:
+                Supabase.instance.client.auth.currentUser?.id ?? 'anonymous',
           );
           finalToken = backendToken.token;
-          print('✅ Token viewer obtenu via backend pour ${widget.live.agoraChannelId}');
+          print(
+            '✅ Token viewer obtenu via backend pour ${widget.live.agoraChannelId}',
+          );
         } catch (e) {
           print('⚠️ Erreur token backend, utilisation du token existant: $e');
           finalToken = token;
@@ -1569,7 +1727,7 @@ class _HostLivePageState extends State<HostLivePage> {
       // Utiliser le token généré lors de la création du live
       final token = widget.live.agoraToken ?? '';
 
-      // Générer un token via le backend pour l'hôte  
+      // Générer un token via le backend pour l'hôte
       String finalToken = '';
       if (AppConfig.useAgoraToken) {
         try {
@@ -1578,7 +1736,9 @@ class _HostLivePageState extends State<HostLivePage> {
             userId: Supabase.instance.client.auth.currentUser?.id ?? 'host',
           );
           finalToken = backendToken.token;
-          print('✅ Token hôte obtenu via backend pour ${widget.live.agoraChannelId}');
+          print(
+            '✅ Token hôte obtenu via backend pour ${widget.live.agoraChannelId}',
+          );
         } catch (e) {
           print('⚠️ Erreur token backend, utilisation du token existant: $e');
           finalToken = token;

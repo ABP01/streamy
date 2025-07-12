@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../config/app_config.dart';
 import '../models/live_stream.dart';
+import '../services/live_join_service.dart';
 import '../services/live_stream_service.dart';
 import 'live_stream_screen.dart';
 
@@ -223,6 +224,18 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
             ),
+
+          const SizedBox(width: 12),
+
+          // Bouton rejoindre un live
+          IconButton(
+            onPressed: () => LiveJoinService.showJoinLiveDialog(context),
+            icon: const Icon(Icons.link, color: Colors.white),
+            tooltip: 'Rejoindre un live',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white.withOpacity(0.2),
+            ),
+          ),
 
           const SizedBox(width: 12),
 

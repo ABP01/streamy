@@ -1,14 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../models/live_stream.dart';
-import '../services/chat_service.dart';
 import '../services/live_stream_service.dart';
 import '../widgets/enhanced_chat_widget.dart';
 import '../widgets/gift_animations.dart';
 import '../widgets/live_stats_widget.dart';
+import '../widgets/quick_invite_widget.dart';
 import '../widgets/reaction_animations.dart' as reactions;
 
 class LiveStreamScreen extends StatefulWidget {
@@ -431,8 +430,23 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
               ),
             ),
 
+            // Boutons d'action
+            GestureDetector(
+              onTap: () =>
+                  context.showQuickInvite(widget.liveId, _currentLive!.title),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(Icons.share, color: Colors.white),
+              ),
+            ),
+
             // Boutons d'action pour l'hôte
             if (widget.isHost) ...[
+              const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => setState(() => _showStats = !_showStats),
                 child: Container(
