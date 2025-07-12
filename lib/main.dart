@@ -1,22 +1,21 @@
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:uuid/uuid.dart';
+
 import 'config/app_config.dart';
 import 'models/live_stream.dart';
+import 'services/auth_service.dart';
 import 'services/live_stream_service.dart';
-import 'services/chat_service.dart';
-import 'services/gift_service.dart';
-import 'widgets/enhanced_chat_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
     anonKey: AppConfig.supabaseAnonKey,
   );
-  
+
   runApp(const StreamyApp());
 }
 
@@ -86,7 +85,10 @@ class _AuthPageState extends State<AuthPage> {
     super.dispose();
   }
 
+  final AuthService _authService = AuthService();
+
   Future<void> _authenticate() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -98,36 +100,30 @@ class _AuthPageState extends State<AuthPage> {
 
     try {
       if (_isSignUp) {
-        // Inscription
-        final response = await Supabase.instance.client.auth.signUp(
+        // Inscription sans vérification email
+        final response = await _authService.signUp(
           email: email,
           password: password,
-          data: {
-            'username': username.isNotEmpty ? username : null,
-            'full_name': username.isNotEmpty ? username : null,
-          },
+          username: username,
         );
-        
         if (response.user != null) {
-          // Créer le profil utilisateur dans notre table
           await _createUserProfile(response.user!, username);
         }
       } else {
-        // Connexion
-        await Supabase.instance.client.auth.signInWithPassword(
-          email: email,
-          password: password,
-        );
+        await _authService.signIn(email: email, password: password);
       }
     } on AuthException catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.message;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = 'Une erreur inattendue s\'est produite';
       });
     } finally {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
@@ -140,7 +136,6 @@ class _AuthPageState extends State<AuthPage> {
         'id': user.id,
         'email': user.email,
         'username': username.isNotEmpty ? username : null,
-        'full_name': username.isNotEmpty ? username : null,
         'tokens_balance': 100, // Tokens de bienvenue
       });
     } catch (e) {
@@ -156,10 +151,7 @@ class _AuthPageState extends State<AuthPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
-            ],
+            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
           ),
         ),
         child: SafeArea(
@@ -170,11 +162,7 @@ class _AuthPageState extends State<AuthPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Logo et titre
-                  const Icon(
-                    Icons.videocam,
-                    size: 80,
-                    color: Colors.white,
-                  ),
+                  const Icon(Icons.videocam, size: 80, color: Colors.white),
                   const SizedBox(height: 16),
                   const Text(
                     'Streamy',
@@ -187,10 +175,7 @@ class _AuthPageState extends State<AuthPage> {
                   const SizedBox(height: 8),
                   Text(
                     _isSignUp ? 'Créer un compte' : 'Connectez-vous',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      color: Colors.white70,
-                    ),
+                    style: const TextStyle(fontSize: 18, color: Colors.white70),
                   ),
                   const SizedBox(height: 48),
 
@@ -208,13 +193,19 @@ class _AuthPageState extends State<AuthPage> {
                             controller: _usernameController,
                             decoration: InputDecoration(
                               labelText: 'Nom d\'utilisateur',
-                              labelStyle: const TextStyle(color: Colors.white70),
+                              labelStyle: const TextStyle(
+                                color: Colors.white70,
+                              ),
                               enabledBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(color: Colors.white30),
+                                borderSide: const BorderSide(
+                                  color: Colors.white30,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(color: Colors.white),
+                                borderSide: const BorderSide(
+                                  color: Colors.white,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
@@ -222,14 +213,16 @@ class _AuthPageState extends State<AuthPage> {
                           ),
                           const SizedBox(height: 16),
                         ],
-                        
+
                         TextField(
                           controller: _emailController,
                           decoration: InputDecoration(
                             labelText: 'Email',
                             labelStyle: const TextStyle(color: Colors.white70),
                             enabledBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: Colors.white30),
+                              borderSide: const BorderSide(
+                                color: Colors.white30,
+                              ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             focusedBorder: OutlineInputBorder(
@@ -241,14 +234,16 @@ class _AuthPageState extends State<AuthPage> {
                           style: const TextStyle(color: Colors.white),
                         ),
                         const SizedBox(height: 16),
-                        
+
                         TextField(
                           controller: _passwordController,
                           decoration: InputDecoration(
                             labelText: 'Mot de passe',
                             labelStyle: const TextStyle(color: Colors.white70),
                             enabledBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: Colors.white30),
+                              borderSide: const BorderSide(
+                                color: Colors.white30,
+                              ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             focusedBorder: OutlineInputBorder(
@@ -268,7 +263,9 @@ class _AuthPageState extends State<AuthPage> {
                             decoration: BoxDecoration(
                               color: Colors.red.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red.withOpacity(0.5)),
+                              border: Border.all(
+                                color: Colors.red.withOpacity(0.5),
+                              ),
                             ),
                             child: Text(
                               _error!,
@@ -296,10 +293,14 @@ class _AuthPageState extends State<AuthPage> {
                                 ? const SizedBox(
                                     height: 20,
                                     width: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : Text(
-                                    _isSignUp ? 'Créer un compte' : 'Se connecter',
+                                    _isSignUp
+                                        ? 'Créer un compte'
+                                        : 'Se connecter',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -363,13 +364,14 @@ class _LiveSwipePageState extends State<LiveSwipePage> {
   }
 
   void _startLive() async {
-    final result = await Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const StartLivePage()),
-    );      if (result == true) {
-        setState(() {
-          _livesFuture = _liveService.fetchLiveStreams();
-        });
-      }
+    final result = await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const StartLivePage()));
+    if (result == true) {
+      setState(() {
+        _livesFuture = _liveService.fetchLiveStreams();
+      });
+    }
   }
 
   void _showUserProfile() {
@@ -392,10 +394,7 @@ class _LiveSwipePageState extends State<LiveSwipePage> {
         ),
         title: const Text(
           'Streamy',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         actions: [
@@ -520,7 +519,11 @@ class _LiveSwipePageState extends State<LiveSwipePage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.videocam_off, color: Colors.white, size: 64),
+                    const Icon(
+                      Icons.videocam_off,
+                      color: Colors.white,
+                      size: 64,
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'Aucun live en cours',
@@ -589,6 +592,7 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
   int? _remoteUid;
   bool _joined = false;
   bool _isLiked = false;
+  String? _agoraError;
 
   @override
   void initState() {
@@ -618,12 +622,13 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
     try {
       _engine = createAgoraRtcEngine();
       await _engine.initialize(RtcEngineContext(appId: AppConfig.agoraAppId));
-      
+
       _engine.registerEventHandler(
         RtcEngineEventHandler(
           onJoinChannelSuccess: (connection, elapsed) {
             setState(() {
               _joined = true;
+              _agoraError = null;
             });
           },
           onUserJoined: (connection, remoteUid, elapsed) {
@@ -636,9 +641,14 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
               _remoteUid = null;
             });
           },
+          onError: (err, msg) {
+            setState(() {
+              _agoraError = 'Erreur Agora ($err): $msg';
+            });
+          },
         ),
       );
-      
+
       await _engine.enableVideo();
       await _engine.joinChannel(
         token: '', // Token à implémenter pour la production
@@ -650,6 +660,9 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
       );
     } catch (e) {
       debugPrint('Erreur Agora: $e');
+      setState(() {
+        _agoraError = 'Erreur Agora: $e';
+      });
     }
   }
 
@@ -692,10 +705,10 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
       children: [
         // Vidéo background
         _buildVideoView(),
-        
+
         // Overlay avec informations
         _buildOverlay(),
-        
+
         // Interface utilisateur
         _buildUI(),
       ],
@@ -703,7 +716,46 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
   }
 
   Widget _buildVideoView() {
+    if (_agoraError != null) {
+      debugPrint(
+        '[DEBUG] Erreur Agora détectée dans _buildVideoView:  A${_agoraError!}',
+      );
+      return Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error, color: Colors.red, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                _agoraError!,
+                style: const TextStyle(color: Colors.red, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  debugPrint(
+                    '[DEBUG] Bouton Réessayer pressé, relance _initAgora',
+                  );
+                  _initAgora();
+                },
+                child: const Text('Réessayer'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (!_joined) {
+      debugPrint('[DEBUG] Attente de connexion au live (_joined == false)');
       return Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -786,9 +838,9 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
         children: [
           // En-tête avec infos du live
           _buildHeader(),
-          
+
           const Spacer(),
-          
+
           // Actions et chat
           _buildBottomSection(),
         ],
@@ -814,7 +866,7 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
             ),
           ),
           const SizedBox(width: 12),
-          
+
           // Infos du live
           Expanded(
             child: Column(
@@ -832,15 +884,25 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
                 ),
                 Row(
                   children: [
-                    const Icon(Icons.visibility, size: 14, color: Colors.white70),
+                    const Icon(
+                      Icons.visibility,
+                      size: 14,
+                      color: Colors.white70,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       '${widget.live.viewerCount}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.circular(4),
@@ -899,9 +961,9 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
               ),
             ),
           ),
-          
+
           const SizedBox(width: 12),
-          
+
           // Actions
           Column(
             mainAxisSize: MainAxisSize.min,
@@ -913,7 +975,9 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: _isLiked ? Colors.red : Colors.white.withOpacity(0.2),
+                    color: _isLiked
+                        ? Colors.red
+                        : Colors.white.withOpacity(0.2),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -923,9 +987,9 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               // Cadeaux
               GestureDetector(
                 onTap: _showGifts,
@@ -943,9 +1007,9 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               // Commentaires
               GestureDetector(
                 onTap: _showComments,
@@ -1029,7 +1093,7 @@ class _StartLivePageState extends State<StartLivePage> {
     }
 
     final liveId = const Uuid().v4();
-    
+
     try {
       await Supabase.instance.client.from('lives').insert({
         'id': liveId,
@@ -1052,7 +1116,7 @@ class _StartLivePageState extends State<StartLivePage> {
                 id: liveId,
                 title: title,
                 hostId: user.id,
-                startedAt: DateTime.now().toIso8601String(),
+                startedAt: DateTime.now(),
                 isLive: true,
               ),
             ),
@@ -1104,7 +1168,9 @@ class _StartLivePageState extends State<StartLivePage> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    const SizedBox(width: 48), // Pour équilibrer avec le bouton close
+                    const SizedBox(
+                      width: 48,
+                    ), // Pour équilibrer avec le bouton close
                   ],
                 ),
               ),
@@ -1122,7 +1188,9 @@ class _StartLivePageState extends State<StartLivePage> {
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withOpacity(0.3)),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                          ),
                         ),
                         child: const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -1131,11 +1199,17 @@ class _StartLivePageState extends State<StartLivePage> {
                             SizedBox(height: 8),
                             Text(
                               'Aperçu de la caméra',
-                              style: TextStyle(color: Colors.white, fontSize: 16),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
                             ),
                             Text(
                               'La vidéo apparaîtra ici',
-                              style: TextStyle(color: Colors.white70, fontSize: 14),
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
                             ),
                           ],
                         ),
@@ -1168,7 +1242,9 @@ class _StartLivePageState extends State<StartLivePage> {
                               style: const TextStyle(color: Colors.white),
                               decoration: InputDecoration(
                                 hintText: 'Donnez un titre accrocheur...',
-                                hintStyle: const TextStyle(color: Colors.white54),
+                                hintStyle: const TextStyle(
+                                  color: Colors.white54,
+                                ),
                                 filled: true,
                                 fillColor: Colors.white.withOpacity(0.1),
                                 border: OutlineInputBorder(
@@ -1196,7 +1272,9 @@ class _StartLivePageState extends State<StartLivePage> {
                               style: const TextStyle(color: Colors.white),
                               decoration: InputDecoration(
                                 hintText: 'Décrivez votre live...',
-                                hintStyle: const TextStyle(color: Colors.white54),
+                                hintStyle: const TextStyle(
+                                  color: Colors.white54,
+                                ),
                                 filled: true,
                                 fillColor: Colors.white.withOpacity(0.1),
                                 border: OutlineInputBorder(
@@ -1222,7 +1300,9 @@ class _StartLivePageState extends State<StartLivePage> {
                             const SizedBox(height: 8),
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
@@ -1239,12 +1319,16 @@ class _StartLivePageState extends State<StartLivePage> {
                                   },
                                   dropdownColor: const Color(0xFF667eea),
                                   style: const TextStyle(color: Colors.white),
-                                  items: _categories.map<DropdownMenuItem<String>>((String value) {
-                                    return DropdownMenuItem<String>(
-                                      value: value,
-                                      child: Text(value),
-                                    );
-                                  }).toList(),
+                                  items: _categories
+                                      .map<DropdownMenuItem<String>>((
+                                        String value,
+                                      ) {
+                                        return DropdownMenuItem<String>(
+                                          value: value,
+                                          child: Text(value),
+                                        );
+                                      })
+                                      .toList(),
                                 ),
                               ),
                             ),
@@ -1261,7 +1345,9 @@ class _StartLivePageState extends State<StartLivePage> {
                           decoration: BoxDecoration(
                             color: Colors.red.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.red.withOpacity(0.5)),
+                            border: Border.all(
+                              color: Colors.red.withOpacity(0.5),
+                            ),
                           ),
                           child: Text(
                             _error!,
@@ -1289,7 +1375,9 @@ class _StartLivePageState extends State<StartLivePage> {
                               ? const SizedBox(
                                   height: 24,
                                   width: 24,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1321,7 +1409,7 @@ class _StartLivePageState extends State<StartLivePage> {
 
 class HostLivePage extends StatefulWidget {
   final LiveStream live;
-  
+
   const HostLivePage({super.key, required this.live});
 
   @override
@@ -1353,7 +1441,7 @@ class _HostLivePageState extends State<HostLivePage> {
     try {
       _engine = createAgoraRtcEngine();
       await _engine.initialize(RtcEngineContext(appId: AppConfig.agoraAppId));
-      
+
       _engine.registerEventHandler(
         RtcEngineEventHandler(
           onJoinChannelSuccess: (connection, elapsed) {
@@ -1369,7 +1457,7 @@ class _HostLivePageState extends State<HostLivePage> {
           },
         ),
       );
-      
+
       await _engine.enableVideo();
       await _engine.startPreview();
       await _engine.joinChannel(
@@ -1483,10 +1571,10 @@ class _HostLivePageState extends State<HostLivePage> {
         children: [
           // Vue de la caméra
           _buildCameraView(),
-          
+
           // Statistiques en temps réel
           _buildStatsOverlay(),
-          
+
           // Contrôles
           _buildControls(),
         ],
@@ -1542,7 +1630,11 @@ class _HostLivePageState extends State<HostLivePage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildStatItem(Icons.visibility, _viewerCount.toString(), 'Viewers'),
+            _buildStatItem(
+              Icons.visibility,
+              _viewerCount.toString(),
+              'Viewers',
+            ),
             _buildStatItem(Icons.favorite, _likeCount.toString(), 'Likes'),
             _buildStatItem(Icons.access_time, _getStreamDuration(), 'Durée'),
           ],
@@ -1567,10 +1659,7 @@ class _HostLivePageState extends State<HostLivePage> {
         ),
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 12,
-          ),
+          style: const TextStyle(color: Colors.white70, fontSize: 12),
         ),
       ],
     );
@@ -1589,28 +1678,28 @@ class _HostLivePageState extends State<HostLivePage> {
             icon: Icons.flip_camera_ios,
             onTap: _switchCamera,
           ),
-          
+
           // Basculer micro
           _buildControlButton(
             icon: _micEnabled ? Icons.mic : Icons.mic_off,
             isActive: _micEnabled,
             onTap: _toggleMic,
           ),
-          
+
           // Terminer le live
           _buildControlButton(
             icon: Icons.call_end,
             backgroundColor: Colors.red,
             onTap: _endLive,
           ),
-          
+
           // Basculer caméra
           _buildControlButton(
             icon: _cameraEnabled ? Icons.videocam : Icons.videocam_off,
             isActive: _cameraEnabled,
             onTap: _toggleCamera,
           ),
-          
+
           // Menu des options
           _buildControlButton(
             icon: Icons.more_vert,
@@ -1635,15 +1724,14 @@ class _HostLivePageState extends State<HostLivePage> {
         width: 56,
         height: 56,
         decoration: BoxDecoration(
-          color: backgroundColor ?? 
-                 (isActive ? Colors.white.withOpacity(0.2) : Colors.red.withOpacity(0.7)),
+          color:
+              backgroundColor ??
+              (isActive
+                  ? Colors.white.withOpacity(0.2)
+                  : Colors.red.withOpacity(0.7)),
           shape: BoxShape.circle,
         ),
-        child: Icon(
-          icon,
-          color: Colors.white,
-          size: 24,
-        ),
+        child: Icon(icon, color: Colors.white, size: 24),
       ),
     );
   }

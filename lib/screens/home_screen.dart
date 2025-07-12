@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
-import '../services/live_stream_service.dart';
-import '../models/live_stream.dart';
-import '../widgets/live_thumbnail_widget.dart';
-import '../config/app_config.dart';
-import 'live_stream_screen.dart';
 import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import '../config/app_config.dart';
+import '../models/live_stream.dart';
+import '../services/live_stream_service.dart';
+import 'live_stream_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,14 +18,13 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   final LiveStreamService _liveStreamService = LiveStreamService();
   final PageController _pageController = PageController();
-  
+
   List<LiveStream> _liveStreams = [];
   bool _isLoading = true;
   bool _hasError = false;
   String _errorMessage = '';
-  int _currentIndex = 0;
   Timer? _refreshTimer;
-  
+
   late AnimationController _fabAnimationController;
   late Animation<double> _fabAnimation;
 
@@ -49,14 +49,13 @@ class _HomeScreenState extends State<HomeScreen>
       duration: AppAnimations.mediumDuration,
       vsync: this,
     );
-    
-    _fabAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fabAnimationController,
-      curve: AppAnimations.elasticCurve,
-    ));
+
+    _fabAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _fabAnimationController,
+        curve: AppAnimations.elasticCurve,
+      ),
+    );
   }
 
   void _setupAutoRefresh() {
@@ -75,13 +74,13 @@ class _HomeScreenState extends State<HomeScreen>
       });
 
       final streams = await _liveStreamService.fetchLiveStreams();
-      
+
       if (mounted) {
         setState(() {
           _liveStreams = streams.where((stream) => stream.isLive).toList();
           _isLoading = false;
         });
-        
+
         // Animer le FAB après le chargement
         if (_liveStreams.isNotEmpty) {
           _fabAnimationController.forward();
@@ -101,7 +100,7 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _refreshLiveStreams() async {
     try {
       final streams = await _liveStreamService.fetchLiveStreams();
-      
+
       if (mounted) {
         setState(() {
           _liveStreams = streams.where((stream) => stream.isLive).toList();
@@ -136,10 +135,8 @@ class _HomeScreenState extends State<HomeScreen>
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => LiveStreamScreen(
-                liveId: live.id,
-                isHost: true,
-              ),
+              builder: (context) =>
+                  LiveStreamScreen(liveId: live.id, isHost: true),
             ),
           );
         },
@@ -155,9 +152,7 @@ class _HomeScreenState extends State<HomeScreen>
         child: Column(
           children: [
             _buildAppBar(),
-            Expanded(
-              child: _buildBody(),
-            ),
+            Expanded(child: _buildBody()),
           ],
         ),
       ),
@@ -180,10 +175,7 @@ class _HomeScreenState extends State<HomeScreen>
         children: [
           // Logo ou titre
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               gradient: AppTheme.primaryGradient,
               borderRadius: BorderRadius.circular(20),
@@ -197,16 +189,13 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
           ),
-          
+
           const Spacer(),
-          
+
           // Indicateur de lives actifs
           if (_liveStreams.isNotEmpty)
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 6,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: AppTheme.successColor,
                 borderRadius: BorderRadius.circular(16),
@@ -234,9 +223,9 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
             ),
-          
+
           const SizedBox(width: 12),
-          
+
           // Menu utilisateur
           CircleAvatar(
             backgroundColor: AppTheme.surfaceColor,
@@ -278,11 +267,7 @@ class _HomeScreenState extends State<HomeScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: AppTheme.errorColor,
-            ),
+            Icon(Icons.error_outline, size: 64, color: AppTheme.errorColor),
             const SizedBox(height: 16),
             Text(
               'Erreur de chargement',
@@ -322,11 +307,7 @@ class _HomeScreenState extends State<HomeScreen>
                 color: AppTheme.surfaceColor.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.live_tv,
-                size: 64,
-                color: Colors.white70,
-              ),
+              child: const Icon(Icons.live_tv, size: 64, color: Colors.white70),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -407,7 +388,7 @@ class _HomeScreenState extends State<HomeScreen>
               )
             else
               _buildPlaceholderBackground(),
-            
+
             // Gradient overlay
             Positioned.fill(
               child: Container(
@@ -415,15 +396,12 @@ class _HomeScreenState extends State<HomeScreen>
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.7),
-                    ],
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
                   ),
                 ),
               ),
             ),
-            
+
             // Informations du live
             Positioned(
               left: 16,
@@ -455,7 +433,9 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                             ),
                             Text(
-                              AppUtils.formatTimeAgo(live.startedAt ?? DateTime.now()),
+                              AppUtils.formatTimeAgo(
+                                live.startedAt ?? DateTime.now(),
+                              ),
                               style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 12,
@@ -466,9 +446,9 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Titre du live
                   Text(
                     live.title,
@@ -480,9 +460,9 @@ class _HomeScreenState extends State<HomeScreen>
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  
+
                   const SizedBox(height: 8),
-                  
+
                   // Description
                   if (live.description != null)
                     Text(
@@ -494,9 +474,9 @@ class _HomeScreenState extends State<HomeScreen>
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Tags
                   if (live.tags != null && live.tags!.isNotEmpty)
                     Wrap(
@@ -525,7 +505,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
             ),
-            
+
             // Statistiques sur le côté droit
             Positioned(
               right: 16,
@@ -552,7 +532,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
             ),
-            
+
             // Badge LIVE
             Positioned(
               top: 50,
@@ -576,7 +556,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
             ),
-            
+
             // Indicateur de page
             if (_liveStreams.length > 1)
               Positioned(
@@ -589,8 +569,8 @@ class _HomeScreenState extends State<HomeScreen>
                       width: 4,
                       height: i == index ? 20 : 8,
                       decoration: BoxDecoration(
-                        color: i == index 
-                            ? Colors.white 
+                        color: i == index
+                            ? Colors.white
                             : Colors.white.withOpacity(0.4),
                         borderRadius: BorderRadius.circular(2),
                       ),
@@ -610,10 +590,7 @@ class _HomeScreenState extends State<HomeScreen>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppTheme.primaryColor,
-            AppTheme.secondaryColor,
-          ],
+          colors: [AppTheme.primaryColor, AppTheme.secondaryColor],
         ),
       ),
     );
@@ -630,11 +607,7 @@ class _HomeScreenState extends State<HomeScreen>
               color: Colors.black.withOpacity(0.5),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 24,
-            ),
+            child: Icon(icon, color: Colors.white, size: 24),
           ),
           const SizedBox(height: 4),
           Text(
@@ -687,7 +660,7 @@ class _CreateLiveSheetState extends State<_CreateLiveSheet> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           // Titre
           Padding(
             padding: const EdgeInsets.all(16),
@@ -709,7 +682,7 @@ class _CreateLiveSheetState extends State<_CreateLiveSheet> {
               ],
             ),
           ),
-          
+
           // Formulaire
           Expanded(
             child: Padding(
@@ -727,9 +700,9 @@ class _CreateLiveSheetState extends State<_CreateLiveSheet> {
                     ),
                     maxLength: 50,
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   TextField(
                     controller: _descriptionController,
                     style: const TextStyle(color: Colors.white),
@@ -741,19 +714,21 @@ class _CreateLiveSheetState extends State<_CreateLiveSheet> {
                     maxLines: 3,
                     maxLength: 200,
                   ),
-                  
+
                   const Spacer(),
-                  
+
                   ElevatedButton.icon(
                     onPressed: _isCreating ? null : _createLive,
-                    icon: _isCreating 
+                    icon: _isCreating
                         ? const SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.videocam),
-                    label: Text(_isCreating ? 'Création...' : 'Commencer le live'),
+                    label: Text(
+                      _isCreating ? 'Création...' : 'Commencer le live',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -770,9 +745,9 @@ class _CreateLiveSheetState extends State<_CreateLiveSheet> {
 
   Future<void> _createLive() async {
     if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez entrer un titre')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Veuillez entrer un titre')));
       return;
     }
 
@@ -785,8 +760,8 @@ class _CreateLiveSheetState extends State<_CreateLiveSheet> {
       final live = await liveStreamService.createLiveStream(
         hostId: 'current_user_id', // À remplacer par l'ID utilisateur réel
         title: _titleController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty 
-            ? null 
+        description: _descriptionController.text.trim().isEmpty
+            ? null
             : _descriptionController.text.trim(),
         tags: _tags,
       );
@@ -797,11 +772,11 @@ class _CreateLiveSheetState extends State<_CreateLiveSheet> {
       setState(() {
         _isCreating = false;
       });
-      
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     }
   }
@@ -829,9 +804,9 @@ class _UserMenuSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           ListTile(
             leading: const Icon(Icons.person, color: Colors.white),
             title: const Text('Profil', style: TextStyle(color: Colors.white)),
@@ -840,30 +815,39 @@ class _UserMenuSheet extends StatelessWidget {
               // Naviguer vers le profil
             },
           ),
-          
+
           ListTile(
             leading: const Icon(Icons.history, color: Colors.white),
-            title: const Text('Historique', style: TextStyle(color: Colors.white)),
+            title: const Text(
+              'Historique',
+              style: TextStyle(color: Colors.white),
+            ),
             onTap: () {
               Navigator.pop(context);
               // Naviguer vers l'historique
             },
           ),
-          
+
           ListTile(
             leading: const Icon(Icons.settings, color: Colors.white),
-            title: const Text('Paramètres', style: TextStyle(color: Colors.white)),
+            title: const Text(
+              'Paramètres',
+              style: TextStyle(color: Colors.white),
+            ),
             onTap: () {
               Navigator.pop(context);
               // Naviguer vers les paramètres
             },
           ),
-          
+
           const Divider(color: Colors.grey),
-          
+
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text('Déconnexion', style: TextStyle(color: Colors.red)),
+            title: const Text(
+              'Déconnexion',
+              style: TextStyle(color: Colors.red),
+            ),
             onTap: () {
               Navigator.pop(context);
               // Déconnexion

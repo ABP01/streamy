@@ -5,16 +5,16 @@ import 'package:flutter/services.dart';
 class AppConfig {
   // Configuration Agora
   static const String agoraAppId = kDebugMode
-      ? 'YOUR_AGORA_APP_ID_DEBUG'
+      ? '28918fa47b4042c28f962d26dc5f27dd'
       : 'YOUR_AGORA_APP_ID_PROD';
 
   // Configuration Supabase
   static const String supabaseUrl = kDebugMode
-      ? 'https://your-dev-supabase-url.supabase.co'
+      ? 'https://mgesuowulhtfumurrhvx.supabase.co'
       : 'https://your-prod-supabase-url.supabase.co';
 
   static const String supabaseAnonKey = kDebugMode
-      ? 'your-dev-anon-key'
+      ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nZXN1b3d1bGh0ZnVtdXJyaHZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMDg5NzksImV4cCI6MjA2Nzg4NDk3OX0.pydGfp6050RqPMA0uNbGyDnssbIW88b5ESZMwk2DSG0'
       : 'your-prod-anon-key';
 
   // Configuration de l'app

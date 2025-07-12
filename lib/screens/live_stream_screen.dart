@@ -1,13 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../models/live_stream.dart';
+import '../services/chat_service.dart';
+import '../services/live_stream_service.dart';
 import '../widgets/enhanced_chat_widget.dart';
-import '../widgets/reaction_animations.dart' as reactions;
 import '../widgets/gift_animations.dart';
 import '../widgets/live_stats_widget.dart';
-import '../models/live_stream.dart';
-import '../services/live_stream_service.dart';
-import '../services/chat_service.dart';
-import 'dart:async';
+import '../widgets/reaction_animations.dart' as reactions;
 
 class LiveStreamScreen extends StatefulWidget {
   final String liveId;
@@ -29,7 +31,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
   final GlobalKey _reactionKey = GlobalKey();
   final GlobalKey _giftKey = GlobalKey();
   final PageController _pageController = PageController();
-  
+
   LiveStream? _currentLive;
   bool _isLoading = true;
   bool _isConnected = false;
@@ -37,11 +39,11 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
   bool _showStats = false;
   Timer? _heartbeatTimer;
   Timer? _statsTimer;
-  
+
   // Variables pour les contrôles de l'interface
   bool _controlsVisible = true;
   Timer? _controlsTimer;
-  
+
   @override
   void initState() {
     super.initState();
@@ -69,7 +71,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
           _currentLive = live;
           _isLoading = false;
         });
-        
+
         // Rejoindre le live
         await _liveStreamService.joinLive(widget.liveId, 'current_user_id');
         setState(() {
@@ -82,9 +84,9 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
       });
       // Gérer l'erreur
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     }
   }
@@ -147,14 +149,14 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
   void _handleGiftSent(String giftId, String giftType, int quantity) {
     // Envoyer le cadeau via le service
     // _liveStreamService.sendGift(widget.liveId, giftId, giftType, quantity);
-    
+
     // Afficher une réaction
     // _reactionKey.currentState?.addReaction(reactions.ReactionType.gift);
   }
 
   void _handleReaction(reactions.ReactionType type) {
     // _reactionKey.currentState?.addReaction(type);
-    
+
     // Envoyer la réaction au serveur (à implémenter)
     switch (type) {
       case reactions.ReactionType.heart:
@@ -196,10 +198,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                 Navigator.pop(context);
               }
             },
-            child: const Text(
-              'Terminer',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('Terminer', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -211,9 +210,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-          child: CircularProgressIndicator(color: Colors.purple),
-        ),
+        body: Center(child: CircularProgressIndicator(color: Colors.purple)),
       );
     }
 
@@ -224,11 +221,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
-                color: Colors.white,
-                size: 64,
-              ),
+              const Icon(Icons.error_outline, color: Colors.white, size: 64),
               const SizedBox(height: 16),
               const Text(
                 'Live introuvable',
@@ -257,27 +250,27 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
           children: [
             // Fond vidéo (à remplacer par Agora)
             _buildVideoBackground(),
-            
+
             // Overlay de réactions
             reactions.ReactionAnimationWidget(
               key: _reactionKey,
               liveId: widget.liveId,
               child: const SizedBox.expand(),
             ),
-            
+
             // Interface utilisateur
             AnimatedOpacity(
               opacity: _controlsVisible ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 300),
               child: _buildUIOverlay(),
             ),
-            
+
             // Chat (toujours visible en bas)
             if (_showChat) _buildChatOverlay(),
-            
+
             // Stats pour l'hôte
             if (widget.isHost && _showStats) _buildStatsOverlay(),
-            
+
             // Animations de cadeaux
             GiftAnimationWidget(
               key: _giftKey,
@@ -324,21 +317,14 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Colors.purple.shade800,
-            Colors.pink.shade800,
-          ],
+          colors: [Colors.purple.shade800, Colors.pink.shade800],
         ),
       ),
       child: const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.videocam,
-              color: Colors.white,
-              size: 64,
-            ),
+            Icon(Icons.videocam, color: Colors.white, size: 64),
             SizedBox(height: 16),
             Text(
               'Vidéo en direct',
@@ -359,9 +345,9 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
       children: [
         // Barre du haut
         _buildTopBar(),
-        
+
         const Spacer(),
-        
+
         // Contrôles du bas
         _buildBottomControls(),
       ],
@@ -383,15 +369,12 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                   color: Colors.black.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                ),
+                child: const Icon(Icons.arrow_back, color: Colors.white),
               ),
             ),
-            
+
             const SizedBox(width: 16),
-            
+
             // Informations du live
             Expanded(
               child: Column(
@@ -447,7 +430,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                 ],
               ),
             ),
-            
+
             // Boutons d'action pour l'hôte
             if (widget.isHost) ...[
               GestureDetector(
@@ -458,10 +441,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                     color: Colors.black.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Icon(
-                    Icons.analytics,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.analytics, color: Colors.white),
                 ),
               ),
               const SizedBox(width: 8),
@@ -473,10 +453,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                     color: Colors.red.withOpacity(0.8),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Icon(
-                    Icons.call_end,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.call_end, color: Colors.white),
                 ),
               ),
             ],
@@ -506,9 +483,9 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
               ),
             ),
           ),
-          
+
           const Spacer(),
-          
+
           // Boutons de réaction
           Row(
             children: [
@@ -524,10 +501,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                     color: Colors.yellow.withOpacity(0.8),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.star,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.star, color: Colors.white),
                 ),
               ),
             ],
@@ -543,10 +517,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
       right: 0,
       bottom: 0,
       height: MediaQuery.of(context).size.height * 0.5,
-      child: EnhancedChatWidget(
-        liveId: widget.liveId,
-        isHost: widget.isHost,
-      ),
+      child: EnhancedChatWidget(liveId: widget.liveId, isHost: widget.isHost),
     );
   }
 

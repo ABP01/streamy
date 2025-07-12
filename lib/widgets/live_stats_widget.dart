@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:animations/animations.dart';
-import '../models/models.dart';
+
 import '../services/live_stream_service.dart';
 
 class LiveStatsWidget extends StatefulWidget {
@@ -38,21 +37,13 @@ class _LiveStatsWidgetState extends State<LiveStatsWidget>
       vsync: this,
     );
 
-    _slideAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
+    _slideAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
 
     _animationController.forward();
   }
@@ -96,10 +87,7 @@ class _LiveStatsWidgetState extends State<LiveStatsWidget>
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.9),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -107,11 +95,7 @@ class _LiveStatsWidgetState extends State<LiveStatsWidget>
           // En-tête
           Row(
             children: [
-              const Icon(
-                Icons.analytics,
-                color: Colors.white,
-                size: 24,
-              ),
+              const Icon(Icons.analytics, color: Colors.white, size: 24),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
@@ -125,10 +109,7 @@ class _LiveStatsWidgetState extends State<LiveStatsWidget>
               ),
               IconButton(
                 onPressed: _close,
-                icon: const Icon(
-                  Icons.close,
-                  color: Colors.white70,
-                ),
+                icon: const Icon(Icons.close, color: Colors.white70),
               ),
             ],
           ),
@@ -193,9 +174,9 @@ class _LiveStatsWidgetState extends State<LiveStatsWidget>
             ),
           ],
         ),
-        
+
         const SizedBox(height: 20),
-        
+
         // Durée du live
         Container(
           padding: const EdgeInsets.all(16),
@@ -205,18 +186,11 @@ class _LiveStatsWidgetState extends State<LiveStatsWidget>
           ),
           child: Row(
             children: [
-              const Icon(
-                Icons.schedule,
-                color: Colors.white70,
-                size: 20,
-              ),
+              const Icon(Icons.schedule, color: Colors.white70, size: 20),
               const SizedBox(width: 8),
               const Text(
                 'Durée du live : ',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.white70, fontSize: 14),
               ),
               Text(
                 stats.formattedDuration,
@@ -250,19 +224,12 @@ class _LiveStatsWidgetState extends State<LiveStatsWidget>
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 24,
-          ),
+          Icon(icon, color: color, size: 24),
           const SizedBox(height: 8),
           Text(
             value,
@@ -274,20 +241,14 @@ class _LiveStatsWidgetState extends State<LiveStatsWidget>
           ),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-            ),
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
             textAlign: TextAlign.center,
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
             Text(
               subtitle,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 9,
-              ),
+              style: const TextStyle(color: Colors.white54, fontSize: 9),
               textAlign: TextAlign.center,
             ),
           ],
@@ -309,31 +270,22 @@ class _LiveStatsWidgetState extends State<LiveStatsWidget>
           ),
         ),
         const SizedBox(height: 12),
-        
+
         // Engagement rate
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.orange.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.orange.withOpacity(0.3),
-            ),
+            border: Border.all(color: Colors.orange.withOpacity(0.3)),
           ),
           child: Row(
             children: [
-              const Icon(
-                Icons.trending_up,
-                color: Colors.orange,
-                size: 20,
-              ),
+              const Icon(Icons.trending_up, color: Colors.orange, size: 20),
               const SizedBox(width: 8),
               const Text(
                 'Engagement : ',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: Colors.white70, fontSize: 12),
               ),
               Text(
                 '${_calculateEngagementRate(stats).toStringAsFixed(1)}%',
@@ -346,9 +298,9 @@ class _LiveStatsWidgetState extends State<LiveStatsWidget>
             ],
           ),
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // Actions rapides pour l'hôte
         Row(
           children: [
@@ -406,11 +358,7 @@ class _LiveStatsWidgetState extends State<LiveStatsWidget>
     return Center(
       child: Column(
         children: [
-          const Icon(
-            Icons.error_outline,
-            color: Colors.red,
-            size: 48,
-          ),
+          const Icon(Icons.error_outline, color: Colors.red, size: 48),
           const SizedBox(height: 12),
           const Text(
             'Erreur lors du chargement',
@@ -430,8 +378,9 @@ class _LiveStatsWidgetState extends State<LiveStatsWidget>
 
   double _calculateEngagementRate(LiveStats stats) {
     if (stats.viewerCount == 0) return 0.0;
-    
-    final totalInteractions = stats.likeCount + stats.messageCount + stats.giftCount;
-    return (totalInteractions / stats.viewerCount) * 100;
+
+    final totalInteractions =
+        stats.likeCount + stats.messageCount + stats.giftCount;
+    return (totalInteractions / (stats.viewerCount * 3)) * 100;
   }
 }
