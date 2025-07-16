@@ -10,8 +10,15 @@ import '../models/models.dart';
 import '../services/co_host_service.dart';
 import '../widgets/co_host_widget.dart';
 
+/// Écran de live streaming dans le style TikTok avec défilement vertical
+///
+/// Permet de naviguer entre différents lives en swipant verticalement,
+/// avec affichage des contrôles, réactions et interfaces de cadeaux.
 class TikTokStyleLiveScreen extends StatefulWidget {
+  /// Liste des streams à afficher
   final List<StreamContent> liveStreams;
+
+  /// Index du stream initial à afficher
   final int initialIndex;
 
   const TikTokStyleLiveScreen({
@@ -24,107 +31,153 @@ class TikTokStyleLiveScreen extends StatefulWidget {
   State<TikTokStyleLiveScreen> createState() => _TikTokStyleLiveScreenState();
 }
 
+/// État de l'écran TikTok Style Live Screen
 class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     with TickerProviderStateMixin {
+  // ═══════════════════════════════════════════════════════════════
+  // CONTRÔLEURS ET VARIABLES D'ÉTAT
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Contrôleur pour la navigation entre les lives
   late PageController _pageController;
+
+  /// Index du live actuellement affiché
   int _currentIndex = 0;
+
+  /// Contrôleur d'animation pour les réactions (cœurs flottants)
   late AnimationController _reactionController;
+
+  /// Contrôleur d'animation pour le chat (non utilisé actuellement)
   late AnimationController _chatController;
-  Map<String, List<Map<String, String>>> _liveChatMessages =
-      {}; // Messages par live
+
+  /// Liste des cœurs flottants actuellement animés
   List<Widget> _floatingHearts = [];
+
+  /// Timer pour les fonctionnalités automatiques (auto-join)
   Timer? _autoJoinTimer;
-  final TextEditingController _chatTextController = TextEditingController();
-  bool _showChatInput = false;
-  final ScrollController _chatScrollController = ScrollController();
-  bool _showSendButton = false;
+
+  // ═══════════════════════════════════════════════════════════════
+  // CYCLE DE VIE DU WIDGET
+  // ═══════════════════════════════════════════════════════════════
 
   @override
   void initState() {
     super.initState();
+
+    // Initialiser l'index du stream de départ
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
 
-    // Initialiser les contrôleurs d'animation
-    _reactionController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
-      vsync: this,
-    );
-    _chatController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
+    // Configurer les contrôleurs d'animation
+    _initializeAnimationControllers();
 
-    // Mettre l'écran en plein écran
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+    // Passer en mode plein écran immersif (style TikTok)
+    _enableImmersiveMode();
 
     // Auto-rejoindre le live actuel après que le widget soit construit
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoJoinCurrentLive();
     });
-
-    // Démarrer les messages de chat simulés
-    _startChatSimulation();
   }
 
   @override
   void dispose() {
+    // Nettoyer les ressources
     _pageController.dispose();
     _reactionController.dispose();
     _chatController.dispose();
-    _chatTextController.dispose();
-    _chatScrollController.dispose();
     _autoJoinTimer?.cancel();
-    // Restaurer la barre de statut
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+    // Restaurer l'interface système normale
+    _restoreSystemUI();
     super.dispose();
   }
 
-  void _toggleControls() {
-    // Les contrôles restent maintenant toujours visibles
-    // Plus besoin de logique auto-hide
+  // ═══════════════════════════════════════════════════════════════
+  // MÉTHODES D'INITIALISATION
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Initialise les contrôleurs d'animation pour les effets visuels
+  void _initializeAnimationControllers() {
+    _reactionController = AnimationController(
+      duration: const Duration(
+        milliseconds: 2000,
+      ), // Animation de 2 secondes pour les cœurs
+      vsync: this,
+    );
+
+    _chatController = AnimationController(
+      duration: const Duration(
+        milliseconds: 300,
+      ), // Animation rapide pour le chat
+      vsync: this,
+    );
   }
+
+  /// Active le mode plein écran immersif (masque la barre de statut et navigation)
+  void _enableImmersiveMode() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+  }
+
+  /// Restaure l'interface système normale (barre de statut visible)
+  void _restoreSystemUI() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GESTIONNAIRES D'ÉVÉNEMENTS
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Méthode pour basculer l'affichage des contrôles (actuellement désactivée)
+  /// Note: Les contrôles restent toujours visibles dans cette version
+  void _toggleControls() {
+    // Fonctionnalité désactivée : les contrôles restent toujours visibles
+    // Cette méthode est conservée pour d'éventuelles améliorations futures
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // CONSTRUCTION DE L'INTERFACE UTILISATEUR
+  // ═══════════════════════════════════════════════════════════════
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.black, // Fond noir pour style TikTok
       body: GestureDetector(
-        onTap: _toggleControls,
-        onDoubleTap: () =>
-            _sendHeartReaction(), // Double tap pour envoyer une réaction
+        // Interactions gestuelles
+        onTap: _toggleControls, // Tap simple pour basculer les contrôles
+        onDoubleTap:
+            _sendHeartReaction, // Double tap pour envoyer une réaction cœur
+        // PageView vertical pour navigation entre les lives (style TikTok)
         child: PageView.builder(
           controller: _pageController,
-          scrollDirection: Axis.vertical,
+          scrollDirection: Axis.vertical, // Défilement vertical comme TikTok
           itemCount: widget.liveStreams.length,
+
+          // Callback appelé lors du changement de page
           onPageChanged: (index) {
             setState(() {
               _currentIndex = index;
             });
-            // Vibration légère pour le feedback
+
+            // Feedback haptique pour une meilleure UX
             HapticFeedback.selectionClick();
+
             // Auto-rejoindre le nouveau live
             _autoJoinCurrentLive();
           },
+
+          // Construction de chaque page de live
           itemBuilder: (context, index) {
             final stream = widget.liveStreams[index];
+
             return Stack(
               fit: StackFit.expand,
               children: [
-                // Arrière-plan du stream (image/vidéo)
-                _buildStreamBackground(stream),
-
-                // Overlay avec les contrôles (toujours visibles)
-                _buildOverlay(stream),
-
-                // Chat scrollable
-                _buildScrollableChat(stream),
-
-                // Coeurs flottants
-                ..._floatingHearts,
-
-                // Champ de chat en bas
-                _buildChatInput(stream),
+                // Couches empilées pour l'interface complète
+                _buildStreamBackground(stream), // Arrière-plan (image/vidéo)
+                _buildOverlay(stream), // Overlay avec contrôles
+                ..._floatingHearts, // Cœurs flottants animés
               ],
             );
           },
@@ -133,26 +186,37 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // CONSTRUCTION DES COMPOSANTS VISUELS
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Construit l'arrière-plan du stream avec image et dégradé
   Widget _buildStreamBackground(StreamContent stream) {
     return Container(
       decoration: BoxDecoration(
+        // Image de fond du stream
         image: DecorationImage(
           image: NetworkImage(stream.thumbnail),
           fit: BoxFit.cover,
           onError: (error, stackTrace) {
-            // Gérer l'erreur de chargement d'image
+            // Gestion silencieuse des erreurs de chargement d'image
+            debugPrint('Erreur de chargement image: $error');
           },
         ),
       ),
+
+      // Overlay avec dégradé pour améliorer la lisibilité du texte
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.black.withOpacity(0.3),
-              Colors.transparent,
-              Colors.black.withOpacity(0.7),
+              Colors.black.withOpacity(0.3), // Assombrir le haut
+              Colors.transparent, // Zone centrale claire
+              Colors.black.withOpacity(
+                0.7,
+              ), // Assombrir le bas pour les contrôles
             ],
             stops: const [0.0, 0.5, 1.0],
           ),
@@ -161,111 +225,43 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     );
   }
 
+  /// Construit l'overlay principal contenant header et contrôles
   Widget _buildOverlay(StreamContent stream) {
     return Positioned.fill(
       child: Column(
         children: [
-          // Header avec info du streamer
+          // En-tête avec informations du streamer
           _buildHeader(stream),
 
+          // Espace flexible pour pousser les contrôles en bas
           const Spacer(),
 
-          // Contrôles et informations en bas
+          // Contrôles et informations en bas de l'écran
           _buildBottomControls(stream),
         ],
       ),
     );
   }
 
+  /// Construit l'en-tête avec avatar, nom du streamer, badge LIVE et nombre de viewers
   Widget _buildHeader(StreamContent stream) {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            // Avatar du streamer
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                image: stream.userAvatar != null
-                    ? DecorationImage(
-                        image: NetworkImage(stream.userAvatar!),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-              ),
-              child: stream.userAvatar == null
-                  ? const Icon(Icons.person, color: Colors.white)
-                  : null,
-            ),
+            // Avatar du streamer avec bordure
+            _buildStreamerAvatar(stream),
             const SizedBox(width: 12),
 
-            // Nom du streamer
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    stream.username,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  if (stream.isLive)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'LIVE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+            // Informations du streamer (nom + badge LIVE)
+            Expanded(child: _buildStreamerInfo(stream)),
 
-            // Nombre de viewers
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.visibility, color: Colors.white, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    _formatViewerCount(stream.viewerCount),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
+            // Nombre de viewers avec icône
+            _buildViewerCount(stream),
             const SizedBox(width: 8),
 
-            // Indicateur co-hosts (en temps réel)
+            // Indicateur co-hosts en temps réel
             _buildCoHostIndicator(stream),
           ],
         ),
@@ -273,12 +269,97 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     );
   }
 
+  /// Construit l'avatar du streamer avec bordure blanche
+  Widget _buildStreamerAvatar(StreamContent stream) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+        image: stream.userAvatar != null
+            ? DecorationImage(
+                image: NetworkImage(stream.userAvatar!),
+                fit: BoxFit.cover,
+              )
+            : null,
+      ),
+      child: stream.userAvatar == null
+          ? const Icon(Icons.person, color: Colors.white)
+          : null,
+    );
+  }
+
+  /// Construit les informations du streamer (nom + badge LIVE)
+  Widget _buildStreamerInfo(StreamContent stream) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Nom du streamer
+        Text(
+          stream.username,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+
+        // Badge LIVE si le stream est en direct
+        if (stream.isLive)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.red,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text(
+              'LIVE',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Construit l'affichage du nombre de viewers
+  Widget _buildViewerCount(StreamContent stream) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.visibility, color: Colors.white, size: 16),
+          const SizedBox(width: 4),
+          Text(
+            _formatViewerCount(stream.viewerCount),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Construit l'indicateur de co-hosts avec données en temps réel
   Widget _buildCoHostIndicator(StreamContent stream) {
     return StreamBuilder<List<CoHost>>(
       stream: CoHostService.getActiveCoHostsStream(stream.id),
       builder: (context, snapshot) {
         final coHosts = snapshot.data ?? <CoHost>[];
 
+        // Masquer l'indicateur s'il n'y a pas de co-hosts
         if (coHosts.isEmpty) {
           return const SizedBox.shrink();
         }
@@ -312,6 +393,7 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     );
   }
 
+  /// Construit les contrôles en bas de l'écran (titre, catégorie, boutons d'action)
   Widget _buildBottomControls(StreamContent stream) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -319,100 +401,91 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Titre du stream
-          Text(
-            stream.title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 8),
 
-          // Catégorie
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF6C5CE7).withOpacity(0.8),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              stream.category,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
+          // Boutons d'action horizontaux
+          _buildActionButtons(stream),
 
-          // Boutons d'action
-          Row(
-            children: [
-              // Bouton de chat
-              _buildActionButton(
-                icon: Icons.chat_bubble_outline,
-                onTap: () {
-                  setState(() {
-                    _showChatInput = !_showChatInput;
-                  });
-                },
-              ),
-              const SizedBox(width: 12),
-
-              // Bouton de réaction coeur
-              _buildActionButton(
-                icon: Icons.favorite,
-                color: Colors.red,
-                onTap: () {
-                  _sendHeartReaction();
-                },
-              ),
-              const SizedBox(width: 12),
-
-              // Bouton de cadeaux
-              _buildActionButton(
-                icon: Icons.card_giftcard,
-                color: Colors.amber,
-                onTap: () {
-                  _showGiftInterface(stream);
-                },
-              ),
-              const SizedBox(width: 12),
-
-              // Bouton co-host
-              _buildActionButton(
-                icon: Icons.people,
-                color: const Color(0xFF6C5CE7),
-                onTap: () {
-                  _showCoHostInterface(stream);
-                },
-              ),
-              const SizedBox(width: 12),
-
-              // Bouton de partage
-              _buildActionButton(
-                icon: Icons.share,
-                onTap: () {
-                  _shareStream(stream);
-                },
-              ),
-
-              const Spacer(),
-            ],
-          ),
-
-          // Safe area bottom
+          // Espace pour la zone de sécurité du bas
           SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
       ),
     );
   }
 
+  /// Construit le titre du stream avec limitation de lignes
+  Widget _buildStreamTitle(StreamContent stream) {
+    return Text(
+      stream.title,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  /// Construit le badge de catégorie avec couleur thématique
+  Widget _buildCategoryBadge(StreamContent stream) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF6C5CE7).withOpacity(0.8),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        stream.category,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  /// Construit la rangée de boutons d'action
+  Widget _buildActionButtons(StreamContent stream) {
+    return Row(
+      children: [
+        // Bouton de réaction cœur
+        _buildActionButton(
+          icon: Icons.favorite,
+          color: Colors.red,
+          onTap: _sendHeartReaction,
+        ),
+        const SizedBox(width: 12),
+
+        // Bouton de cadeaux
+        _buildActionButton(
+          icon: Icons.card_giftcard,
+          color: Colors.amber,
+          onTap: () => _showGiftInterface(stream),
+        ),
+        const SizedBox(width: 12),
+
+        // Bouton co-host
+        _buildActionButton(
+          icon: Icons.people,
+          color: const Color(0xFF6C5CE7),
+          onTap: () => _showCoHostInterface(stream),
+        ),
+        const SizedBox(width: 12),
+
+        // Bouton de partage
+        _buildActionButton(
+          icon: Icons.share,
+          onTap: () => _shareStream(stream),
+        ),
+
+        // Espace flexible pour pousser à droite si nécessaire
+        const Spacer(),
+      ],
+    );
+  }
+
+  /// Construit un bouton d'action circulaire avec icône
   Widget _buildActionButton({
     required IconData icon,
     required VoidCallback onTap,
@@ -424,7 +497,7 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
         width: 48,
         height: 48,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.5),
+          color: Colors.black.withOpacity(0.5), // Fond semi-transparent
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: color ?? Colors.white, size: 24),
@@ -432,6 +505,11 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // MÉTHODES UTILITAIRES
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Formate le nombre de viewers avec suffixes K/M pour les grands nombres
   String _formatViewerCount(int count) {
     if (count >= 1000000) {
       return '${(count / 1000000).toStringAsFixed(1)}M';
@@ -442,17 +520,22 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // SYSTÈME DE RÉACTIONS ET ANIMATIONS
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Envoie une réaction cœur avec animation flottante
   void _sendHeartReaction() {
-    // Animation de réaction avec coeur
+    // Feedback haptique pour une meilleure expérience utilisateur
     HapticFeedback.lightImpact();
 
-    // Créer un coeur flottant
+    // Créer et ajouter un cœur flottant animé
     final heart = _createFloatingHeart();
     setState(() {
       _floatingHearts.add(heart);
     });
 
-    // Supprimer le coeur après l'animation
+    // Programmer la suppression du cœur après l'animation
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         setState(() {
@@ -462,24 +545,31 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     });
   }
 
+  /// Crée un widget de cœur flottant avec animation personnalisée
   Widget _createFloatingHeart() {
     final random = Random();
+
+    // Position horizontale aléatoire pour varier l'effet
     final leftPosition =
         random.nextDouble() * (MediaQuery.of(context).size.width - 100) + 50;
 
     return Positioned(
       left: leftPosition,
-      bottom: 100,
+      bottom: 100, // Position de départ en bas de l'écran
       child: TweenAnimationBuilder<double>(
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 3), // Durée de l'animation
         tween: Tween(begin: 0.0, end: 1.0),
         builder: (context, value, child) {
           return Transform.translate(
-            offset: Offset(sin(value * 2 * pi) * 20, -value * 300),
+            // Mouvement combiné : montée avec oscillation sinusoïdale
+            offset: Offset(
+              sin(value * 2 * pi) * 20, // Oscillation horizontale
+              -value * 300, // Montée verticale
+            ),
             child: Opacity(
-              opacity: 1 - value,
+              opacity: 1 - value, // Disparition progressive
               child: Transform.scale(
-                scale: 0.5 + value * 0.5,
+                scale: 0.5 + value * 0.5, // Légère augmentation de taille
                 child: const Icon(Icons.favorite, color: Colors.red, size: 40),
               ),
             ),
@@ -489,288 +579,48 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // GESTION DES LIVES ET AUTO-JOIN
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Rejoint automatiquement le live actuellement affiché
+  /// Cette méthode simule la connexion automatique lors du défilement
   void _autoJoinCurrentLive() {
+    // Vérifications de sécurité
     if (!mounted || _currentIndex >= widget.liveStreams.length) return;
 
     final currentStream = widget.liveStreams[_currentIndex];
-    // Simuler la connexion au live (sans notification visuelle)
-    // La connexion se fait en arrière-plan
+
+    // Simulation de la connexion au live
+    // Dans une implémentation réelle, ceci déclencherait la connexion Agora/WebRTC
     debugPrint('Auto-joined live: ${currentStream.title}');
+
+    // TODO: Implémenter la vraie logique de connexion
+    // - Rejoindre le canal Agora
+    // - Mettre à jour les statistiques de viewer
+    // - Notifier le backend de la connexion
   }
 
-  void _startChatSimulation() {
-    // Simuler des messages de chat qui apparaissent
-    _autoJoinTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
-      if (mounted) {
-        final currentLiveId = widget.liveStreams[_currentIndex].id;
-        final currentMessages = _liveChatMessages[currentLiveId] ?? [];
-        if (currentMessages.length < 4) {
-          _addChatMessage();
-        }
-      }
-    });
-  }
+  // ═══════════════════════════════════════════════════════════════
+  // INTERFACES DE CHAT ET INTERACTION
+  // ═══════════════════════════════════════════════════════════════
 
-  void _addChatMessage() {
-    final messages = [
-      'Salut tout le monde! 👋',
-      'Excellent live! 🔥',
-      'Continue comme ça! 💪',
-      'Trop bien! ❤️',
-      'Top qualité! ⭐',
-    ];
+  /// Construit l'interface de chat en bas de l'écran
+  /// Note: Le chat principal a été supprimé, seul le bouton cadeaux reste
 
-    final usernames = ['Alex_94', 'Marie_L', 'Tom_G', 'Lisa_K', 'Max_P'];
-    final random = Random();
-    final currentLiveId = widget.liveStreams[_currentIndex].id;
+  // ═══════════════════════════════════════════════════════════════
+  // INTERFACES MODALES ET INTERACTIONS AVANCÉES
+  // ═══════════════════════════════════════════════════════════════
 
-    final messageData = {
-      'username': usernames[random.nextInt(usernames.length)],
-      'message': messages[random.nextInt(messages.length)],
-      'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
-    };
-
-    setState(() {
-      if (_liveChatMessages[currentLiveId] == null) {
-        _liveChatMessages[currentLiveId] = [];
-      }
-      _liveChatMessages[currentLiveId]!.add(messageData);
-      // Garder un historique plus large pour le scroll
-      if (_liveChatMessages[currentLiveId]!.length > 50) {
-        _liveChatMessages[currentLiveId]!.removeAt(0);
-      }
-    });
-
-    // Auto-scroll vers le bas pour voir le nouveau message
-    if (_chatScrollController.hasClients) {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        _chatScrollController.animateTo(
-          _chatScrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      });
-    }
-  }
-
-  Widget _buildScrollableChat(StreamContent stream) {
-    final chatMessages = _liveChatMessages[stream.id] ?? [];
-
-    return Positioned(
-      left: 16,
-      right: 100, // Laisser de l'espace pour les boutons à droite
-      bottom: 120, // Au-dessus du champ de texte
-      height: 250, // Hauteur augmentée pour plus de visibilité
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.transparent,
-              Colors.black.withOpacity(0.0),
-              Colors.black.withOpacity(0.0),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: ListView.builder(
-          controller: _chatScrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          itemCount: chatMessages.length,
-          itemBuilder: (context, index) {
-            final msgData = chatMessages[index];
-            final isOwnMessage = msgData['username'] == 'Vous';
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: isOwnMessage
-                    ? const Color(0xFF6C5CE7).withOpacity(0.6)
-                    : Colors.black.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '${msgData['username']}: ',
-                      style: TextStyle(
-                        color: isOwnMessage
-                            ? Colors.white
-                            : const Color(0xFF6C5CE7),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                      ),
-                    ),
-                    TextSpan(
-                      text: msgData['message'],
-                      style: const TextStyle(color: Colors.white, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChatInput(StreamContent stream) {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 8,
-          bottom: MediaQuery.of(context).padding.bottom + 8,
-        ),
-
-        child: Row(
-          children: [
-            // Champ de texte encore plus réduit
-            Expanded(
-              flex: 2, // Plus compact qu'avant (était flex: 3)
-              child: TextField(
-                controller: _chatTextController,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Saississez un message...',
-                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-                  filled: true,
-                  fillColor: Colors.grey.shade800,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18), // Plus compact
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 10, // Encore plus réduit
-                    vertical: 6, // Encore plus réduit
-                  ),
-                ),
-                onChanged: (text) {
-                  setState(() {
-                    _showSendButton = text.trim().isNotEmpty;
-                  });
-                },
-                onTap: () {
-                  // Scroll automatique vers le bas quand on tape
-                  if (_chatScrollController.hasClients) {
-                    Future.delayed(const Duration(milliseconds: 300), () {
-                      _chatScrollController.animateTo(
-                        _chatScrollController.position.maxScrollExtent,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOut,
-                      );
-                    });
-                  }
-                },
-                onSubmitted: (text) => _sendChatMessage(text, stream.id),
-              ),
-            ),
-            const SizedBox(width: 8),
-
-            // Bouton Cadeaux (maintenant à la place de l'ancien bouton envoi)
-            Container(
-              decoration: const BoxDecoration(
-                color: Colors.amber,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                onPressed: () => _showGiftInterface(stream),
-                icon: const Icon(
-                  Icons.card_giftcard,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-            ),
-
-            // Bouton Envoi (apparaît seulement quand il y a du texte)
-            if (_showSendButton) ...[
-              const SizedBox(width: 8),
-              Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF6C5CE7),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  onPressed: () =>
-                      _sendChatMessage(_chatTextController.text, stream.id),
-                  icon: const Icon(Icons.send, color: Colors.white, size: 18),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _sendChatMessage(String message, String liveId) {
-    if (message.trim().isEmpty) return;
-
-    final messageData = {
-      'username': 'Vous',
-      'message': message.trim(),
-      'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
-    };
-
-    setState(() {
-      if (_liveChatMessages[liveId] == null) {
-        _liveChatMessages[liveId] = [];
-      }
-      // Ajouter le nouveau message à la fin
-      _liveChatMessages[liveId]!.add(messageData);
-      if (_liveChatMessages[liveId]!.length > 50) {
-        // Supprimer le plus ancien
-        _liveChatMessages[liveId]!.removeAt(0);
-      }
-    });
-
-    _chatTextController.clear();
-    setState(() {
-      _showSendButton = false;
-    });
-
-    // Auto-scroll vers le bas
-    if (_chatScrollController.hasClients) {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        _chatScrollController.animateTo(
-          _chatScrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      });
-    }
-  }
-
+  /// Affiche l'interface de sélection et d'envoi de cadeaux
   void _showGiftInterface(StreamContent stream) {
-    // Vérifier si l'utilisateur actuel est l'hôte du stream
-    // Pour le moment, nous simulons la vérification avec l'ID de l'utilisateur actuel
-    // Dans un vrai cas, vous récupéreriez l'ID de l'utilisateur connecté
-    // depuis Supabase.instance.client.auth.currentUser?.id
-
-    // Simulation : empêcher l'hôte d'envoyer des cadeaux
-    // L'hôte ne peut pas s'envoyer des cadeaux à lui-même
+    // Vérification de sécurité : empêcher l'hôte d'envoyer des cadeaux à lui-même
     if (_isCurrentUserHost(stream)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Les hôtes ne peuvent pas envoyer de cadeaux à eux-mêmes',
-          ),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showHostRestrictionMessage();
       return;
     }
 
+    // Afficher l'interface modale de cadeaux
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -778,20 +628,33 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     );
   }
 
-  // Méthode pour vérifier si l'utilisateur actuel est l'hôte
+  /// Affiche un message d'information pour les restrictions d'hôte
+  void _showHostRestrictionMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Les hôtes ne peuvent pas envoyer de cadeaux à eux-mêmes',
+        ),
+        backgroundColor: Colors.orange,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  /// Vérifie si l'utilisateur actuel est l'hôte du stream
   bool _isCurrentUserHost(StreamContent stream) {
-    // Récupérer l'ID de l'utilisateur connecté
+    // Récupération de l'ID de l'utilisateur connecté via Supabase
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
-    // Si pas d'utilisateur connecté, considérer comme visiteur (peut envoyer des cadeaux)
+    // Si aucun utilisateur connecté, considérer comme visiteur
     if (currentUserId == null) return false;
 
-    // Vérifier si l'utilisateur actuel est l'hôte du stream
+    // Comparaison avec l'ID de l'hôte du stream
     return currentUserId == stream.hostId;
   }
 
+  /// Affiche un placeholder pour la fonction de partage
   void _shareStream(StreamContent stream) {
-    // TODO: Implémenter le partage
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Fonction de partage à venir'),
@@ -801,68 +664,82 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     );
   }
 
+  /// Affiche l'interface de gestion des co-hosts
   void _showCoHostInterface(StreamContent stream) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: const BoxDecoration(
-          color: Colors.black87,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            // Handle bar
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+      isScrollControlled: true, // Permet un contrôle complet de la hauteur
+      builder: (context) => _buildCoHostModal(stream),
+    );
+  }
 
-            // Header
-            Padding(
+  /// Construit le contenu de la modale co-host
+  Widget _buildCoHostModal(StreamContent stream) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: Colors.black87,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Barre de manipulation (handle bar)
+          _buildModalHandle(),
+
+          // En-tête de la modale
+          _buildCoHostModalHeader(stream),
+
+          // Widget de gestion des co-hosts
+          Expanded(
+            child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Icon(Icons.people, color: Colors.white, size: 24),
-                  const SizedBox(width: 12),
-                  Text(
-                    _isCurrentUserHost(stream)
-                        ? 'Gérer les co-hosts'
-                        : 'Co-hosts',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, color: Colors.white),
-                  ),
-                ],
+              child: CoHostWidget(
+                liveId: stream.id,
+                isHost: _isCurrentUserHost(stream),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            // Co-host widget
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: CoHostWidget(
-                  liveId: stream.id,
-                  isHost: _isCurrentUserHost(stream),
-                ),
-              ),
+  /// Construit la barre de manipulation de la modale
+  Widget _buildModalHandle() {
+    return Container(
+      width: 40,
+      height: 4,
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey,
+        borderRadius: BorderRadius.circular(2),
+      ),
+    );
+  }
+
+  /// Construit l'en-tête de la modale co-host
+  Widget _buildCoHostModalHeader(StreamContent stream) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          const Icon(Icons.people, color: Colors.white, size: 24),
+          const SizedBox(width: 12),
+          Text(
+            _isCurrentUserHost(stream) ? 'Gérer les co-hosts' : 'Co-hosts',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
-          ],
-        ),
+          ),
+          const Spacer(),
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.close, color: Colors.white),
+          ),
+        ],
       ),
     );
   }
