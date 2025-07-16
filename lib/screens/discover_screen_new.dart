@@ -4,8 +4,6 @@ import '../models/models.dart';
 import '../widgets/content_categories_widget.dart';
 import '../widgets/stories_widget.dart';
 import '../widgets/stream_content_card.dart';
-import 'start_live_screen.dart';
-import 'tiktok_style_live_screen.dart';
 
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
@@ -48,9 +46,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           username: 'john_doe',
           avatar:
               'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face',
-          isLive: true,
-          isViewed: false,
           createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+          isViewed: false,
         ),
         Story(
           id: '2',
@@ -58,9 +55,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           username: 'gaming_queen',
           avatar:
               'https://images.unsplash.com/photo-1494790108755-2616b332c2be?w=150&h=150&fit=crop&crop=face',
-          isLive: false,
-          isViewed: true,
           createdAt: DateTime.now().subtract(const Duration(hours: 4)),
+          isViewed: true,
         ),
         Story(
           id: '3',
@@ -68,9 +64,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           username: 'pro_player',
           avatar:
               'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-          isLive: true,
-          isViewed: false,
           createdAt: DateTime.now().subtract(const Duration(hours: 6)),
+          isViewed: false,
         ),
       ];
     });
@@ -80,11 +75,36 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     await Future.delayed(const Duration(milliseconds: 300));
     setState(() {
       _categories = [
-        ContentCategory(id: '1', name: 'Popular', icon: '🔥', isSelected: true),
-        ContentCategory(id: '2', name: 'Gaming', icon: '🎮', isSelected: false),
-        ContentCategory(id: '3', name: 'Music', icon: '🎵', isSelected: false),
-        ContentCategory(id: '4', name: 'Sports', icon: '⚽', isSelected: false),
-        ContentCategory(id: '5', name: 'Art', icon: '🎨', isSelected: false),
+        ContentCategory(
+          id: '1',
+          name: 'Popular',
+          icon: 'local_fire_department',
+          isSelected: true,
+        ),
+        ContentCategory(
+          id: '2',
+          name: 'Gaming',
+          icon: 'games',
+          isSelected: false,
+        ),
+        ContentCategory(
+          id: '3',
+          name: 'Music',
+          icon: 'music_note',
+          isSelected: false,
+        ),
+        ContentCategory(
+          id: '4',
+          name: 'Sports',
+          icon: 'sports_soccer',
+          isSelected: false,
+        ),
+        ContentCategory(
+          id: '5',
+          name: 'Art',
+          icon: 'palette',
+          isSelected: false,
+        ),
       ];
     });
   }
@@ -158,52 +178,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     });
   }
 
-  void _navigateToTikTokLives(int startIndex) {
-    // Créer une liste de tous les streams avec plus de contenu pour le mode TikTok
-    List<StreamContent> allStreams = [
-      ..._streamContents,
-      // Ajouter d'autres streams pour une expérience plus riche
-      StreamContent(
-        id: 'extra1',
-        title: 'Late Night Gaming Session 🌙',
-        thumbnail:
-            'https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=400&h=800&fit=crop',
-        username: 'NightGamer',
-        userAvatar:
-            'https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?w=150&h=150&fit=crop&crop=face',
-        category: 'Gaming',
-        viewerCount: 7890,
-        isLive: true,
-        createdAt: DateTime.now().subtract(const Duration(minutes: 15)),
-      ),
-      StreamContent(
-        id: 'extra2',
-        title: 'Learning Guitar Together 🎸',
-        thumbnail:
-            'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=400&h=800&fit=crop',
-        username: 'GuitarMaster',
-        userAvatar:
-            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-        category: 'Music',
-        viewerCount: 4560,
-        isLive: true,
-        createdAt: DateTime.now().subtract(
-          const Duration(hours: 1, minutes: 20),
-        ),
-      ),
-    ];
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TikTokStyleLiveScreen(
-          liveStreams: allStreams,
-          initialIndex: startIndex,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -230,16 +204,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                   actions: [
                     IconButton(
                       onPressed: () {
-                        // Navigation vers l'écran de création de live
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const StartLiveScreen(),
-                          ),
-                        );
+                        // Notification - À implémenter
                       },
                       icon: const Icon(
-                        Icons.live_tv_rounded,
+                        Icons.notifications_outlined,
                         color: Colors.white,
                       ),
                     ),
@@ -266,8 +234,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       return StreamContentCard(
                         content: _streamContents[index],
                         onTap: () {
-                          // Navigation vers le mode TikTok des lives
-                          _navigateToTikTokLives(index);
+                          // Navigation vers le live - À implémenter
                         },
                       );
                     }, childCount: _streamContents.length),

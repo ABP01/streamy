@@ -1,345 +1,471 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../config/app_config.dart';
+import '../models/models.dart';
 
 class UserProfileScreen extends StatefulWidget {
-  const UserProfileScreen({super.key});
+  final UserProfile user;
+
+  const UserProfileScreen({super.key, required this.user});
 
   @override
   State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class _UserProfileScreenState extends State<UserProfileScreen> {
-  Map<String, dynamic>? _userProfile;
-  bool _isLoading = true;
-  String? _error;
+class _UserProfileScreenState extends State<UserProfileScreen>
+    with SingleTickerProviderStateMixin {
+  int _selectedContentIndex = 0;
+  List<StreamContent> _userStreams = [];
+  List<String> _userTags = [
+    'Game',
+    'Dota 2',
+    'Mobile Legend',
+    'PUBG',
+    'Clash Royale',
+    'Clash of Clans',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
+    _loadUserStreams();
   }
 
-  Future<void> _loadUserProfile() async {
-    try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) {
-        setState(() {
-          _error = 'Utilisateur non connecté';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final response = await Supabase.instance.client
-          .from('users')
-          .select()
-          .eq('id', user.id)
-          .maybeSingle();
-
-      if (response != null) {
-        setState(() {
-          _userProfile = response;
-          _isLoading = false;
-        });
-      } else {
-        // Créer le profil s'il n'existe pas
-        await Supabase.instance.client.from('users').insert({
-          'id': user.id,
-          'email': user.email,
-          'username': user.email?.split('@')[0] ?? 'Utilisateur',
-          'tokens_balance': 100,
-        });
-
-        _loadUserProfile(); // Recharger
-      }
-    } catch (e) {
-      setState(() {
-        _error = 'Erreur lors du chargement du profil: $e';
-        _isLoading = false;
-      });
-    }
+  @override
+  void dispose() {
+    super.dispose();
   }
 
-  Future<void> _logout() async {
-    try {
-      await Supabase.instance.client.auth.signOut();
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur lors de la déconnexion: $e')),
-      );
-    }
+  void _loadUserStreams() {
+    // Simuler le chargement des streams de l'utilisateur
+    setState(() {
+      _userStreams = [
+        StreamContent(
+          id: '1',
+          title: 'Epic Gaming Session',
+          thumbnail:
+              'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=600&fit=crop',
+          username: widget.user.username ?? 'User',
+          userAvatar: widget.user.avatar,
+          category: 'Game',
+          viewerCount: 910,
+          isLive: false,
+          createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+        ),
+        StreamContent(
+          id: '2',
+          title: 'Mobile Legends Tournament',
+          thumbnail:
+              'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&h=600&fit=crop',
+          username: widget.user.username ?? 'User',
+          userAvatar: widget.user.avatar,
+          category: 'Game',
+          viewerCount: 910,
+          isLive: false,
+          createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        ),
+        StreamContent(
+          id: '3',
+          title: 'Clash Royale Strategies',
+          thumbnail:
+              'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop',
+          username: widget.user.username ?? 'User',
+          userAvatar: widget.user.avatar,
+          category: 'Game',
+          viewerCount: 756,
+          isLive: false,
+          createdAt: DateTime.now().subtract(const Duration(days: 2)),
+        ),
+        StreamContent(
+          id: '4',
+          title: 'PUBG Squad Gameplay',
+          thumbnail:
+              'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=400&h=600&fit=crop',
+          username: widget.user.username ?? 'User',
+          userAvatar: widget.user.avatar,
+          category: 'Game',
+          viewerCount: 1200,
+          isLive: false,
+          createdAt: DateTime.now().subtract(const Duration(days: 3)),
+        ),
+      ];
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Mon Profil',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: _logout,
-          ),
+      backgroundColor: Colors.black,
+      body: CustomScrollView(
+        slivers: [
+          _buildAppBar(),
+          _buildProfileHeader(),
+          _buildTagsSection(),
+          _buildActionButtons(),
+          _buildContentGrid(),
         ],
       ),
-      body: _buildBody(),
     );
   }
 
-  Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppTheme.primaryColor),
-      );
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: AppTheme.errorColor,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: const TextStyle(color: Colors.white70),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadUserProfile,
-              child: const Text('Réessayer'),
-            ),
-          ],
+  Widget _buildAppBar() {
+    return SliverAppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      leading: IconButton(
+        onPressed: () => Navigator.pop(context),
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.5),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
         ),
-      );
-    }
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          // Avatar et infos de base
-          Container(
-            padding: const EdgeInsets.all(24),
+      ),
+      actions: [
+        IconButton(
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Notifications - À venir'),
+                backgroundColor: Color(0xFF6C5CE7),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          },
+          icon: Container(
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              borderRadius: BorderRadius.circular(20),
+              color: Colors.black.withOpacity(0.5),
+              shape: BoxShape.circle,
             ),
-            child: Column(
+            child: const Icon(
+              Icons.notifications,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: () {},
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.5),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.more_horiz, color: Colors.white, size: 20),
+          ),
+        ),
+      ],
+      pinned: false,
+      expandedHeight: 0,
+    );
+  }
+
+  Widget _buildProfileHeader() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
               children: [
-                UserAvatar(
-                  username: _userProfile?['username'] ?? 'Utilisateur',
-                  size: 80,
-                  showOnlineIndicator: true,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _userProfile?['username'] ?? 'Utilisateur',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                // Photo de profil
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    image: widget.user.avatar != null
+                        ? DecorationImage(
+                            image: NetworkImage(widget.user.avatar!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                    color: widget.user.avatar == null
+                        ? Colors.grey.shade700
+                        : null,
                   ),
+                  child: widget.user.avatar == null
+                      ? Center(
+                          child: Text(
+                            (widget.user.fullName?.isNotEmpty == true)
+                                ? widget.user.fullName![0].toUpperCase()
+                                : 'U',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                      : null,
                 ),
-                if (_userProfile?['full_name'] != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    _userProfile!['full_name'],
-                    style: const TextStyle(color: Colors.white70, fontSize: 16),
+                const SizedBox(width: 20),
+                // Statistiques
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildStatColumn('86', 'Posts'),
+                      _buildStatColumn('108', 'Following'),
+                      _buildStatColumn('12K', 'Followers'),
+                    ],
                   ),
-                ],
-                const SizedBox(height: 8),
-                Text(
-                  _userProfile?['email'] ?? '',
-                  style: const TextStyle(color: Colors.white60, fontSize: 14),
                 ),
               ],
             ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Statistiques
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  'Tokens',
-                  '${_userProfile?['tokens_balance'] ?? 0}',
-                  Icons.stars,
-                  AppTheme.warningColor,
+            const SizedBox(height: 16),
+            // Nom et vérification
+            Row(
+              children: [
+                Text(
+                  widget.user.fullName ?? widget.user.username ?? 'Utilisateur',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildStatCard(
-                  'Followers',
-                  '${_userProfile?['followers'] ?? 0}',
-                  Icons.people,
-                  AppTheme.successColor,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildStatCard(
-                  'Lives',
-                  '${_userProfile?['total_lives'] ?? 0}',
-                  Icons.videocam,
-                  AppTheme.primaryColor,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // Options du profil
-          _buildProfileOption('Modifier le profil', Icons.edit, () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Édition du profil - À venir')),
-            );
-          }),
-
-          _buildProfileOption('Historique des lives', Icons.history, () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Historique - À venir')),
-            );
-          }),
-
-          _buildProfileOption('Paramètres', Icons.settings, () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Paramètres - À venir')),
-            );
-          }),
-
-          _buildProfileOption('À propos', Icons.info_outline, () {
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                backgroundColor: AppTheme.surfaceColor,
-                title: const Text(
-                  'À propos de Streamy',
-                  style: TextStyle(color: Colors.white),
-                ),
-                content: const Text(
-                  'Streamy v1.0\n\nApplication de streaming live développée avec Flutter et Supabase.\n\nPermet de créer et rejoindre des lives facilement.',
-                  style: TextStyle(color: Colors.white70),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('OK'),
+                if (widget.user.isVerified) ...[
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.verified,
+                    color: Color(0xFF6C5CE7),
+                    size: 20,
                   ),
                 ],
-              ),
-            );
-          }),
-
-          const SizedBox(height: 32),
-
-          // Bouton de déconnexion
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _logout,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.errorColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Bio
+            if (widget.user.bio != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Part of @odamaesport',
+                      style: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      'Live everyday 8pm - 11pm WIB',
+                      style: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.logout),
-                  SizedBox(width: 8),
-                  Text(
-                    'Se déconnecter',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileOption(String title, IconData icon, VoidCallback onTap) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: Colors.white),
-        title: Text(title, style: const TextStyle(color: Colors.white)),
-        trailing: const Icon(
-          Icons.arrow_forward_ios,
-          color: Colors.white54,
-          size: 16,
+          ],
         ),
-        onTap: onTap,
+      ),
+    );
+  }
+
+  Widget _buildStatColumn(String count, String label) {
+    return Column(
+      children: [
+        Text(
+          count,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedContentIndex = 0;
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _selectedContentIndex == 0
+                      ? const Color(0xFF6C5CE7)
+                      : Colors.grey.shade800,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Live Stream',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedContentIndex = 1;
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _selectedContentIndex == 1
+                      ? const Color(0xFF6C5CE7)
+                      : Colors.grey.shade800,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Stream Likes',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTagsSection() {
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _userTags
+              .map(
+                (tag) => Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade800,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    tag,
+                    style: TextStyle(
+                      color: Colors.grey.shade300,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContentGrid() {
+    // Show different content based on selected button
+    List<StreamContent> contentList = _selectedContentIndex == 0
+        ? _userStreams
+        : [];
+    if (contentList.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Center(
+          child: Text(
+            'Aucun contenu à afficher.',
+            style: TextStyle(color: Colors.white, fontSize: 16),
+          ),
+        ),
+      );
+    }
+    return SliverPadding(
+      padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 1.5,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final item = contentList[index];
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image(
+                    image: NetworkImage(item.thumbnail),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey.shade800,
+                        child: const Icon(
+                          Icons.error,
+                          color: Colors.white54,
+                          size: 32,
+                        ),
+                      );
+                    },
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withOpacity(0.5),
+                          Colors.transparent,
+                        ],
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 12,
+                    bottom: 12,
+                    child: Text(
+                      item.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }, childCount: contentList.length),
       ),
     );
   }

@@ -35,6 +35,15 @@ class _StartLiveScreenState extends State<StartLiveScreen> {
   String _selectedCategory = 'Gaming';
 
   @override
+  void initState() {
+    super.initState();
+    // Démarrer automatiquement un live avec des valeurs par défaut
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startQuickLive();
+    });
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
@@ -75,6 +84,48 @@ class _StartLiveScreenState extends State<StartLiveScreen> {
         description: _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
+        category: _selectedCategory,
+        isPrivate: _isPrivate,
+      );
+
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) =>
+                LiveStreamScreen(liveId: live.id, isHost: true),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Erreur lors de la création du live: $e';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _startQuickLive() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        throw Exception('Utilisateur non connecté');
+      }
+
+      // Générer un titre par défaut avec timestamp
+      final defaultTitle =
+          'Live de ${user.userMetadata?['username'] ?? 'Utilisateur'} - ${DateTime.now().hour}h${DateTime.now().minute.toString().padLeft(2, '0')}';
+
+      final live = await _liveStreamService.createLiveStream(
+        title: defaultTitle,
+        hostId: user.id,
+        description: 'Live démarré rapidement',
         category: _selectedCategory,
         isPrivate: _isPrivate,
       );

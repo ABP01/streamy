@@ -342,3 +342,135 @@ class UserProfile {
 
   String get displayName => fullName ?? username ?? email.split('@').first;
 }
+
+// Modèle pour les stories
+class Story {
+  final String id;
+  final String userId;
+  final String username;
+  final String? avatar;
+  final String? title;
+  final bool isLive;
+  final bool isViewed;
+  final DateTime createdAt;
+
+  Story({
+    required this.id,
+    required this.userId,
+    required this.username,
+    this.avatar,
+    this.title,
+    this.isLive = false,
+    this.isViewed = false,
+    required this.createdAt,
+  });
+
+  factory Story.fromJson(Map<String, dynamic> json) {
+    return Story(
+      id: json['id'] as String,
+      userId: json['user_id'] as String,
+      username: json['username'] as String,
+      avatar: json['avatar'] as String?,
+      title: json['title'] as String?,
+      isLive: json['is_live'] as bool? ?? false,
+      isViewed: json['is_viewed'] as bool? ?? false,
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'username': username,
+      'avatar': avatar,
+      'title': title,
+      'is_live': isLive,
+      'is_viewed': isViewed,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
+}
+
+// Modèle pour les contenus de stream
+class StreamContent {
+  final String id;
+  final String title;
+  final String thumbnail;
+  final String username;
+  final String? userAvatar;
+  final String category;
+  final int viewerCount;
+  final bool isLive;
+  final DateTime createdAt;
+  final Duration? duration;
+
+  StreamContent({
+    required this.id,
+    required this.title,
+    required this.thumbnail,
+    required this.username,
+    this.userAvatar,
+    required this.category,
+    this.viewerCount = 0,
+    this.isLive = false,
+    required this.createdAt,
+    this.duration,
+  });
+
+  factory StreamContent.fromJson(Map<String, dynamic> json) {
+    return StreamContent(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      thumbnail: json['thumbnail'] as String,
+      username: json['username'] as String,
+      userAvatar: json['user_avatar'] as String?,
+      category: json['category'] as String,
+      viewerCount: json['viewer_count'] as int? ?? 0,
+      isLive: json['is_live'] as bool? ?? false,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      duration: json['duration'] != null
+          ? Duration(seconds: json['duration'] as int)
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'thumbnail': thumbnail,
+      'username': username,
+      'user_avatar': userAvatar,
+      'category': category,
+      'viewer_count': viewerCount,
+      'is_live': isLive,
+      'created_at': createdAt.toIso8601String(),
+      'duration': duration?.inSeconds,
+    };
+  }
+}
+
+// Modèle pour les catégories de contenu
+class ContentCategory {
+  final String id;
+  final String name;
+  final String icon;
+  final bool isSelected;
+
+  ContentCategory({
+    required this.id,
+    required this.name,
+    required this.icon,
+    this.isSelected = false,
+  });
+
+  ContentCategory copyWith({bool? isSelected}) {
+    return ContentCategory(
+      id: id,
+      name: name,
+      icon: icon,
+      isSelected: isSelected ?? this.isSelected,
+    );
+  }
+}

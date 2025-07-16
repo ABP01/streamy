@@ -206,13 +206,7 @@ class _EnhancedChatWidgetState extends State<EnhancedChatWidget>
             height: _isChatExpanded
                 ? MediaQuery.of(context).size.height * 0.6
                 : 200,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-              ),
-            ),
+            
             child: Column(
               children: [
                 // En-tête du chat

@@ -5,18 +5,14 @@ import 'package:uuid/uuid.dart';
 
 import 'config/app_config.dart';
 import 'models/live_stream.dart';
-import 'screens/discover_screen.dart';
+import 'screens/main_navigation_screen.dart';
 import 'services/agora_backend_service.dart';
-import 'services/agora_debug_service.dart';
 import 'services/agora_error_handler.dart';
 import 'services/auth_service.dart';
 import 'services/live_stream_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Test de la configuration Agora en mode debug
-  AgoraDebugService.testAgoraConfig();
 
   // Test de connexion au backend
   final backendHealthy = await AgoraBackendService.testConnection();
@@ -70,7 +66,7 @@ class AuthGate extends StatelessWidget {
         if (session == null) {
           return const AuthPage();
         } else {
-          return const DiscoverScreen();
+          return const MainNavigationScreen();
         }
       },
     );
@@ -812,7 +808,7 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
             });
           },
           onError: (err, msg) {
-            AgoraDebugService.logAgoraError(err, msg);
+            debugPrint('Agora Error: $err - $msg');
             final errorMessage = AgoraErrorHandler.getErrorMessage(err);
             setState(() {
               _agoraError = errorMessage;
@@ -844,7 +840,7 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
       );
 
       // Debug pour diagnostiquer les problèmes de token
-      AgoraDebugService.debugTokenIssue(token, widget.live.id);
+      debugPrint('Token debugging for live: ${widget.live.id}');
 
       // Générer un token via le backend pour le viewer
       String finalToken = '';
