@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/models.dart';
+
 import '../config/app_config.dart';
+import '../models/models.dart';
 
 class GiftService {
   static final _supabase = Supabase.instance.client;
@@ -14,6 +15,26 @@ class GiftService {
   }) async {
     final user = _supabase.auth.currentUser;
     if (user == null) throw Exception('Utilisateur non authentifié');
+
+    // Vérifier que l'utilisateur n'essaie pas de s'envoyer un cadeau à lui-même
+    if (user.id == receiverId) {
+      throw Exception(
+        'Vous ne pouvez pas vous envoyer des cadeaux à vous-même',
+      );
+    }
+
+    // Vérifier si l'utilisateur est l'hôte du live (les hôtes ne peuvent pas envoyer de cadeaux)
+    final liveData = await _supabase
+        .from('lives')
+        .select('host_id')
+        .eq('id', liveId)
+        .single();
+
+    if (liveData['host_id'] == user.id) {
+      throw Exception(
+        'Les hôtes ne peuvent pas envoyer de cadeaux dans leur propre live',
+      );
+    }
 
     // Vérifier si le type de gift existe
     if (!AppConfig.giftTypes.containsKey(giftType)) {
@@ -56,10 +77,10 @@ class GiftService {
         .single();
 
     // Incrémenter le compteur de gifts du live
-    await _supabase.rpc('increment_gift_count', params: {
-      'live_id': liveId,
-      'gift_count': quantity,
-    });
+    await _supabase.rpc(
+      'increment_gift_count',
+      params: {'live_id': liveId, 'gift_count': quantity},
+    );
 
     return Gift.fromJson(response);
   }
@@ -75,7 +96,10 @@ class GiftService {
   }
 
   // Obtenir l'historique des gifts d'un live
-  static Future<List<Gift>> getLiveGifts(String liveId, {int limit = 50}) async {
+  static Future<List<Gift>> getLiveGifts(
+    String liveId, {
+    int limit = 50,
+  }) async {
     final response = await _supabase
         .from('gifts')
         .select('*')
@@ -87,7 +111,10 @@ class GiftService {
   }
 
   // Obtenir les gifts envoyés par un utilisateur
-  static Future<List<Gift>> getUserSentGifts(String userId, {int limit = 50}) async {
+  static Future<List<Gift>> getUserSentGifts(
+    String userId, {
+    int limit = 50,
+  }) async {
     final response = await _supabase
         .from('gifts')
         .select('*')
@@ -99,7 +126,10 @@ class GiftService {
   }
 
   // Obtenir les gifts reçus par un utilisateur
-  static Future<List<Gift>> getUserReceivedGifts(String userId, {int limit = 50}) async {
+  static Future<List<Gift>> getUserReceivedGifts(
+    String userId, {
+    int limit = 50,
+  }) async {
     final response = await _supabase
         .from('gifts')
         .select('*')
@@ -117,7 +147,7 @@ class GiftService {
 
     // Ici, vous intégreriez votre système de paiement (Stripe, PayPal, etc.)
     // Pour la démo, on ajoute directement les tokens
-    
+
     await _creditTokens(user.id, amount);
 
     // Enregistrer la transaction
@@ -157,16 +187,16 @@ class GiftService {
   }
 
   static Future<void> _debitTokens(String userId, int amount) async {
-    await _supabase.rpc('debit_tokens', params: {
-      'user_id': userId,
-      'amount': amount,
-    });
+    await _supabase.rpc(
+      'debit_tokens',
+      params: {'user_id': userId, 'amount': amount},
+    );
   }
 
   static Future<void> _creditTokens(String userId, int amount) async {
-    await _supabase.rpc('credit_tokens', params: {
-      'user_id': userId,
-      'amount': amount,
-    });
+    await _supabase.rpc(
+      'credit_tokens',
+      params: {'user_id': userId, 'amount': amount},
+    );
   }
 }

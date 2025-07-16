@@ -275,6 +275,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
               key: _giftKey,
               liveId: widget.liveId,
               userId: 'current_user_id', // À remplacer
+              isHost: widget.isHost,
               onGiftSent: _handleGiftSent,
             ),
           ],

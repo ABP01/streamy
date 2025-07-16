@@ -399,6 +399,7 @@ class StreamContent {
   final String thumbnail;
   final String username;
   final String? userAvatar;
+  final String? hostId; // ID de l'hôte du stream
   final String category;
   final int viewerCount;
   final bool isLive;
@@ -411,6 +412,7 @@ class StreamContent {
     required this.thumbnail,
     required this.username,
     this.userAvatar,
+    this.hostId,
     required this.category,
     this.viewerCount = 0,
     this.isLive = false,
@@ -425,6 +427,7 @@ class StreamContent {
       thumbnail: json['thumbnail'] as String,
       username: json['username'] as String,
       userAvatar: json['user_avatar'] as String?,
+      hostId: json['host_id'] as String?,
       category: json['category'] as String,
       viewerCount: json['viewer_count'] as int? ?? 0,
       isLive: json['is_live'] as bool? ?? false,
@@ -442,6 +445,7 @@ class StreamContent {
       'thumbnail': thumbnail,
       'username': username,
       'user_avatar': userAvatar,
+      'host_id': hostId,
       'category': category,
       'viewer_count': viewerCount,
       'is_live': isLive,

@@ -1,7 +1,8 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:math' as math;
-import 'dart:async';
 
 // Modèle simple pour les cadeaux d'animation
 class AnimatedGift {
@@ -25,12 +26,14 @@ class AnimatedGift {
 class GiftAnimationWidget extends StatefulWidget {
   final String liveId;
   final String userId;
+  final bool isHost;
   final Function(String, String, int) onGiftSent; // giftId, giftName, quantity
 
   const GiftAnimationWidget({
     super.key,
     required this.liveId,
     required this.userId,
+    this.isHost = false,
     required this.onGiftSent,
   });
 
@@ -68,16 +71,13 @@ class _GiftAnimationWidgetState extends State<GiftAnimationWidget>
 
   void showGift(AnimatedGift gift) {
     HapticFeedback.mediumImpact();
-    
-    final animation = GiftDisplayAnimation(
-      gift: gift,
-      vsync: this,
-    );
-    
+
+    final animation = GiftDisplayAnimation(gift: gift, vsync: this);
+
     setState(() {
       _activeGifts.add(animation);
     });
-    
+
     animation.start();
   }
 
@@ -90,11 +90,25 @@ class _GiftAnimationWidgetState extends State<GiftAnimationWidget>
       value: _getGiftValue(giftType) * quantity,
       timestamp: DateTime.now(),
     );
-    
+
     showGift(gift);
   }
 
   void _showGiftSelector() {
+    // Vérifier si l'utilisateur est l'hôte
+    if (widget.isHost) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Les hôtes ne peuvent pas envoyer de cadeaux dans leur propre live',
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -102,7 +116,7 @@ class _GiftAnimationWidgetState extends State<GiftAnimationWidget>
       builder: (context) => GiftSelectorSheet(
         onGiftSelected: (giftType, quantity) {
           final giftId = DateTime.now().millisecondsSinceEpoch.toString();
-          
+
           widget.onGiftSent(giftId, giftType, quantity);
           _showGiftAnimation(giftType, quantity, 'Vous');
         },
@@ -133,22 +147,27 @@ class _GiftAnimationWidgetState extends State<GiftAnimationWidget>
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Bouton pour ouvrir le sélecteur de cadeaux
-        Positioned(
-          bottom: 120,
-          right: 16,
-          child: FloatingActionButton(
-            onPressed: _showGiftSelector,
-            backgroundColor: Colors.purple.withOpacity(0.8),
-            child: const Icon(Icons.card_giftcard, color: Colors.white),
+        // Bouton pour ouvrir le sélecteur de cadeaux (seulement pour les visiteurs)
+        if (!widget.isHost)
+          Positioned(
+            bottom: 120,
+            right: 16,
+            child: FloatingActionButton(
+              onPressed: _showGiftSelector,
+              backgroundColor: Colors.purple.withOpacity(0.8),
+              child: const Icon(Icons.card_giftcard, color: Colors.white),
+            ),
           ),
-        ),
-        
+
         // Animations de cadeaux
-        ..._activeGifts.map((gift) => AnimatedBuilder(
-          animation: gift.controller,
-          builder: (context, child) => gift.buildWidget(context),
-        )).toList(),
+        ..._activeGifts
+            .map(
+              (gift) => AnimatedBuilder(
+                animation: gift.controller,
+                builder: (context, child) => gift.buildWidget(context),
+              ),
+            )
+            .toList(),
       ],
     );
   }
@@ -162,62 +181,38 @@ class GiftDisplayAnimation {
   late final Animation<double> fadeAnimation;
   late final Animation<double> rotationAnimation;
 
-  GiftDisplayAnimation({
-    required this.gift,
-    required TickerProvider vsync,
-  }) : controller = AnimationController(
-          duration: const Duration(milliseconds: 3000),
-          vsync: vsync,
-        ) {
+  GiftDisplayAnimation({required this.gift, required TickerProvider vsync})
+    : controller = AnimationController(
+        duration: const Duration(milliseconds: 3000),
+        vsync: vsync,
+      ) {
     _setupAnimations();
   }
 
   void _setupAnimations() {
-    slideAnimation = Tween<double>(
-      begin: 400.0,
-      end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: controller,
-      curve: const Interval(0.0, 0.3, curve: Curves.elasticOut),
-    ));
+    slideAnimation = Tween<double>(begin: 400.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: controller,
+        curve: const Interval(0.0, 0.3, curve: Curves.elasticOut),
+      ),
+    );
 
     scaleAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 0.5, end: 1.2),
-        weight: 30,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 1.2, end: 1.0),
-        weight: 40,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 0.8),
-        weight: 30,
-      ),
+      TweenSequenceItem(tween: Tween<double>(begin: 0.5, end: 1.2), weight: 30),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.2, end: 1.0), weight: 40),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 0.8), weight: 30),
     ]).animate(controller);
 
     fadeAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 0.0, end: 1.0),
-        weight: 20,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 1.0),
-        weight: 60,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 0.0),
-        weight: 20,
-      ),
+      TweenSequenceItem(tween: Tween<double>(begin: 0.0, end: 1.0), weight: 20),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 1.0), weight: 60),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 0.0), weight: 20),
     ]).animate(controller);
 
     rotationAnimation = Tween<double>(
       begin: 0.0,
       end: 2 * math.pi,
-    ).animate(CurvedAnimation(
-      parent: controller,
-      curve: Curves.easeInOut,
-    ));
+    ).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut));
   }
 
   void start() {
@@ -340,10 +335,7 @@ class GiftDisplayAnimation {
 class GiftSelectorSheet extends StatefulWidget {
   final Function(String giftType, int quantity) onGiftSelected;
 
-  const GiftSelectorSheet({
-    super.key,
-    required this.onGiftSelected,
-  });
+  const GiftSelectorSheet({super.key, required this.onGiftSelected});
 
   @override
   State<GiftSelectorSheet> createState() => _GiftSelectorSheetState();
@@ -381,7 +373,7 @@ class _GiftSelectorSheetState extends State<GiftSelectorSheet> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           // Titre
           Padding(
             padding: const EdgeInsets.all(16),
@@ -403,7 +395,7 @@ class _GiftSelectorSheetState extends State<GiftSelectorSheet> {
               ],
             ),
           ),
-          
+
           // Sélecteur de quantité
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -418,9 +410,9 @@ class _GiftSelectorSheetState extends State<GiftSelectorSheet> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Grille de cadeaux
           Expanded(
             child: GridView.builder(
@@ -482,7 +474,7 @@ class _GiftSelectorSheetState extends State<GiftSelectorSheet> {
 
   Widget _buildGiftCard(GiftItem gift) {
     final totalValue = gift.value * _selectedQuantity;
-    
+
     return GestureDetector(
       onTap: () {
         widget.onGiftSelected(gift.name, _selectedQuantity);
@@ -499,18 +491,12 @@ class _GiftSelectorSheetState extends State<GiftSelectorSheet> {
             ],
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.purple.withOpacity(0.5),
-            width: 1,
-          ),
+          border: Border.all(color: Colors.purple.withOpacity(0.5), width: 1),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              gift.icon,
-              style: const TextStyle(fontSize: 40),
-            ),
+            Text(gift.icon, style: const TextStyle(fontSize: 40)),
             const SizedBox(height: 8),
             Text(
               gift.name,
@@ -523,10 +509,7 @@ class _GiftSelectorSheetState extends State<GiftSelectorSheet> {
             const SizedBox(height: 4),
             Text(
               '${gift.value} ⭐',
-              style: TextStyle(
-                color: Colors.yellow[600],
-                fontSize: 12,
-              ),
+              style: TextStyle(color: Colors.yellow[600], fontSize: 12),
             ),
             if (_selectedQuantity > 1) ...[
               const SizedBox(height: 4),
@@ -558,21 +541,14 @@ class GiftItem {
   final String icon;
   final int value;
 
-  GiftItem({
-    required this.name,
-    required this.icon,
-    required this.value,
-  });
+  GiftItem({required this.name, required this.icon, required this.value});
 }
 
 // Widget pour afficher les cadeaux reçus en continu
 class GiftStreamWidget extends StatefulWidget {
   final Stream<AnimatedGift> giftStream;
 
-  const GiftStreamWidget({
-    super.key,
-    required this.giftStream,
-  });
+  const GiftStreamWidget({super.key, required this.giftStream});
 
   @override
   State<GiftStreamWidget> createState() => _GiftStreamWidgetState();
@@ -629,10 +605,7 @@ class _GiftStreamWidgetState extends State<GiftStreamWidget>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            _getGiftIcon(gift.type),
-            style: const TextStyle(fontSize: 20),
-          ),
+          Text(_getGiftIcon(gift.type), style: const TextStyle(fontSize: 20)),
           const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -647,10 +620,7 @@ class _GiftStreamWidgetState extends State<GiftStreamWidget>
               ),
               Text(
                 '${gift.quantity}x ${gift.type}',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 10,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 10),
               ),
             ],
           ),

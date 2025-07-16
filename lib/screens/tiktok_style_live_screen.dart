@@ -3,8 +3,12 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/co_host.dart';
 import '../models/models.dart';
+import '../services/co_host_service.dart';
+import '../widgets/co_host_widget.dart';
 
 class TikTokStyleLiveScreen extends StatefulWidget {
   final List<StreamContent> liveStreams;
@@ -258,9 +262,53 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
                 ],
               ),
             ),
+
+            const SizedBox(width: 8),
+
+            // Indicateur co-hosts (en temps réel)
+            _buildCoHostIndicator(stream),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCoHostIndicator(StreamContent stream) {
+    return StreamBuilder<List<CoHost>>(
+      stream: CoHostService.getActiveCoHostsStream(stream.id),
+      builder: (context, snapshot) {
+        final coHosts = snapshot.data ?? <CoHost>[];
+
+        if (coHosts.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return GestureDetector(
+          onTap: () => _showCoHostInterface(stream),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6C5CE7).withOpacity(0.8),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.people, color: Colors.white, size: 16),
+                const SizedBox(width: 4),
+                Text(
+                  '${coHosts.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -332,6 +380,16 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
                 color: Colors.amber,
                 onTap: () {
                   _showGiftInterface(stream);
+                },
+              ),
+              const SizedBox(width: 12),
+
+              // Bouton co-host
+              _buildActionButton(
+                icon: Icons.people,
+                color: const Color(0xFF6C5CE7),
+                onTap: () {
+                  _showCoHostInterface(stream);
                 },
               ),
               const SizedBox(width: 12),
@@ -693,11 +751,43 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
   }
 
   void _showGiftInterface(StreamContent stream) {
+    // Vérifier si l'utilisateur actuel est l'hôte du stream
+    // Pour le moment, nous simulons la vérification avec l'ID de l'utilisateur actuel
+    // Dans un vrai cas, vous récupéreriez l'ID de l'utilisateur connecté
+    // depuis Supabase.instance.client.auth.currentUser?.id
+
+    // Simulation : empêcher l'hôte d'envoyer des cadeaux
+    // L'hôte ne peut pas s'envoyer des cadeaux à lui-même
+    if (_isCurrentUserHost(stream)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Les hôtes ne peuvent pas envoyer de cadeaux à eux-mêmes',
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => GiftInterfaceOverlay(streamId: stream.id),
     );
+  }
+
+  // Méthode pour vérifier si l'utilisateur actuel est l'hôte
+  bool _isCurrentUserHost(StreamContent stream) {
+    // Récupérer l'ID de l'utilisateur connecté
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+
+    // Si pas d'utilisateur connecté, considérer comme visiteur (peut envoyer des cadeaux)
+    if (currentUserId == null) return false;
+
+    // Vérifier si l'utilisateur actuel est l'hôte du stream
+    return currentUserId == stream.hostId;
   }
 
   void _shareStream(StreamContent stream) {
@@ -707,6 +797,72 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
         content: Text('Fonction de partage à venir'),
         backgroundColor: Color(0xFF6C5CE7),
         behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showCoHostInterface(StreamContent stream) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Icon(Icons.people, color: Colors.white, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    _isCurrentUserHost(stream)
+                        ? 'Gérer les co-hosts'
+                        : 'Co-hosts',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+
+            // Co-host widget
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: CoHostWidget(
+                  liveId: stream.id,
+                  isHost: _isCurrentUserHost(stream),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ class StreamContent {
   final int viewerCount;
   final String streamerName;
   final String streamerAvatar;
+  final String hostId; // ID de l'hôte du stream
   final bool isLive;
   final bool isPromoted;
 
@@ -17,6 +18,7 @@ class StreamContent {
     required this.viewerCount,
     required this.streamerName,
     required this.streamerAvatar,
+    required this.hostId,
     this.isLive = false,
     this.isPromoted = false,
   });

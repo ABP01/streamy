@@ -70,6 +70,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
       streamerName: 'GamerPro',
       streamerAvatar:
           'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop&crop=face',
+      hostId: 'host_1',
       isLive: true,
     ),
     StreamContent(
@@ -82,6 +83,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
       streamerName: 'StarStreamer',
       streamerAvatar:
           'https://images.unsplash.com/photo-1494790108755-2616c9d1cb72?w=50&h=50&fit=crop&crop=face',
+      hostId: 'host_2',
       isLive: false,
       isPromoted: true,
     ),
@@ -95,6 +97,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
       streamerName: 'ProGamer',
       streamerAvatar:
           'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=50&h=50&fit=crop&crop=face',
+      hostId: 'host_3',
       isLive: true,
     ),
     StreamContent(
@@ -107,6 +110,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
       streamerName: 'ReviewMaster',
       streamerAvatar:
           'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=face',
+      hostId: 'host_4',
       isLive: true,
     ),
     StreamContent(
@@ -119,6 +123,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
       streamerName: 'MusicLover',
       streamerAvatar:
           'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=50&h=50&fit=crop&crop=face',
+      hostId: 'host_5',
       isLive: true,
     ),
     StreamContent(
@@ -131,6 +136,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
       streamerName: 'TournamentPro',
       streamerAvatar:
           'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop&crop=face',
+      hostId: 'host_6',
       isLive: false,
     ),
   ];

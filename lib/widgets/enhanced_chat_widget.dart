@@ -142,6 +142,20 @@ class _EnhancedChatWidgetState extends State<EnhancedChatWidget>
   }
 
   Future<void> _sendGift(String giftType, int quantity) async {
+    // Vérifier si l'utilisateur est l'hôte
+    if (widget.isHost) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Les hôtes ne peuvent pas envoyer de cadeaux'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
     // Obtenir l'ID du host du live
     // Cette logique devrait être adaptée selon votre structure de données
     try {
@@ -206,7 +220,7 @@ class _EnhancedChatWidgetState extends State<EnhancedChatWidget>
             height: _isChatExpanded
                 ? MediaQuery.of(context).size.height * 0.6
                 : 200,
-            
+
             child: Column(
               children: [
                 // En-tête du chat
@@ -375,16 +389,17 @@ class _EnhancedChatWidgetState extends State<EnhancedChatWidget>
             },
           ),
 
-          // Bouton gift
-          IconButton(
-            icon: const Icon(Icons.card_giftcard, color: Colors.amber),
-            onPressed: () {
-              setState(() {
-                _isGiftPanelVisible = !_isGiftPanelVisible;
-                _isEmojiPickerVisible = false;
-              });
-            },
-          ),
+          // Bouton gift (seulement pour les visiteurs, pas pour l'hôte)
+          if (!widget.isHost)
+            IconButton(
+              icon: const Icon(Icons.card_giftcard, color: Colors.amber),
+              onPressed: () {
+                setState(() {
+                  _isGiftPanelVisible = !_isGiftPanelVisible;
+                  _isEmojiPickerVisible = false;
+                });
+              },
+            ),
 
           // Bouton envoyer
           IconButton(

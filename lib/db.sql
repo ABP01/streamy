@@ -615,6 +615,14 @@ DECLARE
   v_receiver_id UUID;
   v_gift_id UUID;
 BEGIN
+  -- Récupérer le destinataire (host du live)
+  SELECT host_id INTO v_receiver_id FROM lives WHERE id = p_live_id;
+  
+  -- Vérifier que l'expéditeur n'est pas l'hôte du live
+  IF p_sender_id = v_receiver_id THEN
+    RETURN '{"success": false, "error": "Host cannot send gifts in their own live"}'::JSONB;
+  END IF;
+  
   -- Récupérer les informations du cadeau
   SELECT * INTO v_gift_type FROM gift_types WHERE name = p_gift_type_name AND is_active = true;
   IF NOT FOUND THEN
@@ -629,9 +637,6 @@ BEGIN
   IF v_sender_balance < v_total_cost THEN
     RETURN '{"success": false, "error": "Insufficient balance"}'::JSONB;
   END IF;
-  
-  -- Récupérer le destinataire (host du live)
-  SELECT host_id INTO v_receiver_id FROM lives WHERE id = p_live_id;
   
   -- Débiter les tokens de l'expéditeur
   PERFORM debit_tokens(p_sender_id, v_total_cost);
@@ -752,3 +757,194 @@ LEFT JOIN auto_join_history ajh ON l.id = ajh.live_id
 WHERE l.is_live = true
 GROUP BY l.id, l.title
 ORDER BY total_auto_joins DESC;
+
+-- ===============================
+-- SYSTÈME DE CO-HOST COMME TIKTOK
+-- ===============================
+
+-- Table des demandes de co-host
+CREATE TABLE IF NOT EXISTS cohost_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  live_id UUID NOT NULL REFERENCES lives(id) ON DELETE CASCADE,
+  requester_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  requester_name TEXT NOT NULL,
+  requester_avatar TEXT,
+  host_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'canceled')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  responded_at TIMESTAMP WITH TIME ZONE,
+  UNIQUE(live_id, requester_id, status) -- Un utilisateur ne peut avoir qu'une demande pending par live
+);
+
+-- Table des co-hosts actifs
+CREATE TABLE IF NOT EXISTS cohosts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  live_id UUID NOT NULL REFERENCES lives(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_name TEXT NOT NULL,
+  user_avatar TEXT,
+  joined_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  is_active BOOLEAN DEFAULT TRUE,
+  UNIQUE(live_id, user_id) -- Un utilisateur ne peut être co-host qu'une fois par live
+);
+
+-- Index pour les performances
+CREATE INDEX IF NOT EXISTS idx_cohost_requests_live_id ON cohost_requests(live_id);
+CREATE INDEX IF NOT EXISTS idx_cohost_requests_host_id ON cohost_requests(host_id);
+CREATE INDEX IF NOT EXISTS idx_cohost_requests_status ON cohost_requests(status);
+CREATE INDEX IF NOT EXISTS idx_cohosts_live_id ON cohosts(live_id);
+CREATE INDEX IF NOT EXISTS idx_cohosts_user_id ON cohosts(user_id);
+CREATE INDEX IF NOT EXISTS idx_cohosts_active ON cohosts(is_active);
+
+-- Fonction pour traiter une demande de co-host
+CREATE OR REPLACE FUNCTION process_cohost_request(
+  p_request_id UUID,
+  p_host_id UUID,
+  p_accept BOOLEAN
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_request cohost_requests%ROWTYPE;
+  v_status TEXT;
+BEGIN
+  -- Récupérer la demande
+  SELECT * INTO v_request FROM cohost_requests 
+  WHERE id = p_request_id AND host_id = p_host_id AND status = 'pending';
+  
+  IF NOT FOUND THEN
+    RETURN '{"success": false, "error": "Request not found or already processed"}'::JSONB;
+  END IF;
+  
+  -- Définir le statut
+  v_status := CASE WHEN p_accept THEN 'accepted' ELSE 'rejected' END;
+  
+  -- Mettre à jour la demande
+  UPDATE cohost_requests 
+  SET status = v_status, responded_at = NOW()
+  WHERE id = p_request_id;
+  
+  -- Si acceptée, créer l'entrée co-host
+  IF p_accept THEN
+    INSERT INTO cohosts (live_id, user_id, user_name, user_avatar, is_active)
+    VALUES (v_request.live_id, v_request.requester_id, v_request.requester_name, v_request.requester_avatar, true)
+    ON CONFLICT (live_id, user_id) DO UPDATE SET is_active = true;
+  END IF;
+  
+  RETURN jsonb_build_object(
+    'success', true,
+    'status', v_status,
+    'cohost_created', p_accept
+  );
+END;
+$$ LANGUAGE plpgsql;
+
+-- Fonction pour retirer un co-host
+CREATE OR REPLACE FUNCTION remove_cohost(
+  p_live_id UUID,
+  p_host_id UUID,
+  p_cohost_user_id UUID
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_live_host_id UUID;
+BEGIN
+  -- Vérifier que l'utilisateur est bien l'hôte du live
+  SELECT host_id INTO v_live_host_id FROM lives WHERE id = p_live_id;
+  
+  IF v_live_host_id != p_host_id THEN
+    RETURN '{"success": false, "error": "Only the host can remove co-hosts"}'::JSONB;
+  END IF;
+  
+  -- Désactiver le co-host
+  UPDATE cohosts 
+  SET is_active = false
+  WHERE live_id = p_live_id AND user_id = p_cohost_user_id;
+  
+  IF NOT FOUND THEN
+    RETURN '{"success": false, "error": "Co-host not found"}'::JSONB;
+  END IF;
+  
+  RETURN '{"success": true, "message": "Co-host removed successfully"}'::JSONB;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger pour nettoyer les anciennes demandes
+CREATE OR REPLACE FUNCTION cleanup_old_cohost_requests()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Supprimer les demandes de plus de 24h qui sont encore pending
+  DELETE FROM cohost_requests 
+  WHERE status = 'pending' 
+  AND created_at < NOW() - INTERVAL '24 hours';
+  
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Créer le trigger
+DROP TRIGGER IF EXISTS trigger_cleanup_old_cohost_requests ON cohost_requests;
+CREATE TRIGGER trigger_cleanup_old_cohost_requests
+  AFTER INSERT ON cohost_requests
+  EXECUTE FUNCTION cleanup_old_cohost_requests();
+
+-- Vue pour les statistiques de co-host
+CREATE OR REPLACE VIEW cohost_statistics AS
+SELECT 
+  l.id as live_id,
+  l.title as live_title,
+  l.host_id,
+  COUNT(DISTINCT c.user_id) as active_cohosts_count,
+  COUNT(DISTINCT cr.requester_id) as pending_requests_count,
+  ARRAY_AGG(DISTINCT c.user_name) FILTER (WHERE c.is_active = true) as cohost_names
+FROM lives l
+LEFT JOIN cohosts c ON l.id = c.live_id AND c.is_active = true
+LEFT JOIN cohost_requests cr ON l.id = cr.live_id AND cr.status = 'pending'
+WHERE l.is_live = true
+GROUP BY l.id, l.title, l.host_id;
+
+-- Politiques RLS pour la sécurité
+ALTER TABLE cohost_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cohosts ENABLE ROW LEVEL SECURITY;
+
+-- Les utilisateurs peuvent voir les demandes où ils sont concernés
+CREATE POLICY "Users can view their own cohost requests" ON cohost_requests
+  FOR SELECT USING (
+    auth.uid()::text = requester_id::text OR 
+    auth.uid()::text = host_id::text
+  );
+
+-- Les utilisateurs peuvent créer des demandes de co-host
+CREATE POLICY "Users can create cohost requests" ON cohost_requests
+  FOR INSERT WITH CHECK (auth.uid()::text = requester_id::text);
+
+-- Les utilisateurs peuvent mettre à jour leurs propres demandes ou répondre aux demandes reçues
+CREATE POLICY "Users can update cohost requests" ON cohost_requests
+  FOR UPDATE USING (
+    auth.uid()::text = requester_id::text OR 
+    auth.uid()::text = host_id::text
+  );
+
+-- Les utilisateurs peuvent voir les co-hosts des lives
+CREATE POLICY "Users can view cohosts" ON cohosts
+  FOR SELECT USING (true);
+
+-- Seul l'hôte peut créer des entrées de co-host
+CREATE POLICY "Only hosts can create cohosts" ON cohosts
+  FOR INSERT WITH CHECK (
+    auth.uid()::text IN (
+      SELECT host_id::text FROM lives WHERE id = live_id
+    )
+  );
+
+-- Les hôtes et les co-hosts peuvent mettre à jour les entrées
+CREATE POLICY "Hosts and cohosts can update" ON cohosts
+  FOR UPDATE USING (
+    auth.uid()::text = user_id::text OR
+    auth.uid()::text IN (
+      SELECT host_id::text FROM lives WHERE id = live_id
+    )
+  );
+
+-- ===============================
+-- FIN DU SYSTÈME DE CO-HOST
+-- ===============================
