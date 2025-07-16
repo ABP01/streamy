@@ -38,6 +38,12 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
   // CONTRÔLEURS ET VARIABLES D'ÉTAT
   // ═══════════════════════════════════════════════════════════════
 
+  /// Contrôleur pour le champ de texte de chat
+  final TextEditingController _messageController = TextEditingController();
+
+  /// Liste des messages de chat pour chaque stream
+  final Map<String, List<Map<String, String>>> _chatMessages = {};
+
   /// Contrôleur pour la navigation entre les lives
   late PageController _pageController;
 
@@ -55,6 +61,12 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
 
   /// Timer pour les fonctionnalités automatiques (auto-join)
   Timer? _autoJoinTimer;
+
+  /// Indique si le champ de texte a le focus
+  bool _isTextFieldFocused = false;
+
+  /// FocusNode pour le champ de texte
+  final FocusNode _textFieldFocusNode = FocusNode();
 
   // ═══════════════════════════════════════════════════════════════
   // CYCLE DE VIE DU WIDGET
@@ -77,6 +89,8 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     // Auto-rejoindre le live actuel après que le widget soit construit
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoJoinCurrentLive();
+      _initializeChatMessages(); // Initialiser quelques messages d'exemple
+      _setupFocusListener(); // Configurer l'écoute du focus
     });
   }
 
@@ -86,6 +100,8 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     _pageController.dispose();
     _reactionController.dispose();
     _chatController.dispose();
+    _messageController.dispose();
+    _textFieldFocusNode.dispose();
     _autoJoinTimer?.cancel();
 
     // Restaurer l'interface système normale
@@ -119,6 +135,15 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
   }
 
+  /// Configure l'écoute du focus sur le champ de texte
+  void _setupFocusListener() {
+    _textFieldFocusNode.addListener(() {
+      setState(() {
+        _isTextFieldFocused = _textFieldFocusNode.hasFocus;
+      });
+    });
+  }
+
   /// Restaure l'interface système normale (barre de statut visible)
   void _restoreSystemUI() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -128,11 +153,14 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
   // GESTIONNAIRES D'ÉVÉNEMENTS
   // ═══════════════════════════════════════════════════════════════
 
-  /// Méthode pour basculer l'affichage des contrôles (actuellement désactivée)
-  /// Note: Les contrôles restent toujours visibles dans cette version
+  /// Méthode pour basculer l'affichage des contrôles
+  /// Retire également le focus du champ de texte si il est actif
   void _toggleControls() {
-    // Fonctionnalité désactivée : les contrôles restent toujours visibles
-    // Cette méthode est conservée pour d'éventuelles améliorations futures
+    // Si le champ de texte a le focus, le retirer
+    if (_isTextFieldFocused) {
+      _textFieldFocusNode.unfocus();
+    }
+    // Fonctionnalité de basculement des contrôles conservée pour d'éventuelles améliorations futures
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -393,7 +421,7 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     );
   }
 
-  /// Construit les contrôles en bas de l'écran (titre, catégorie, boutons d'action)
+  /// Construit les contrôles en bas de l'écran avec chat et boutons d'action
   Widget _buildBottomControls(StreamContent stream) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -401,8 +429,13 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Petite liste de chat - affichée uniquement s'il y a des messages
+          if (_chatMessages[stream.id]?.isNotEmpty ?? false)
+            _buildChatList(stream),
+          if (_chatMessages[stream.id]?.isNotEmpty ?? false)
+            const SizedBox(height: 12),
 
-          // Boutons d'action horizontaux
+          // Champ de texte et boutons d'action horizontaux
           _buildActionButtons(stream),
 
           // Espace pour la zone de sécurité du bas
@@ -412,75 +445,158 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
     );
   }
 
-  /// Construit le titre du stream avec limitation de lignes
-  Widget _buildStreamTitle(StreamContent stream) {
-    return Text(
-      stream.title,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-      ),
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
+  /// Construit une petite liste de chat avec les derniers messages
+  Widget _buildChatList(StreamContent stream) {
+    final messages = _chatMessages[stream.id] ?? [];
 
-  /// Construit le badge de catégorie avec couleur thématique
-  Widget _buildCategoryBadge(StreamContent stream) {
+    // Prendre seulement les 3 derniers messages pour l'affichage
+    final displayMessages = messages.length > 3
+        ? messages.sublist(messages.length - 3)
+        : messages;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF6C5CE7).withOpacity(0.8),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        stream.category,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      height: 90, // Hauteur fixe pour 3 messages
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      child: displayMessages.isEmpty
+          ? const Center(
+              child: Text(
+                'Aucun message pour le moment...',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            )
+          : ListView.builder(
+              itemCount: displayMessages.length,
+              itemBuilder: (context, index) {
+                final message = displayMessages[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: RichText(
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '${message['username']}: ',
+                              style: const TextStyle(
+                                color: Color(0xFF6C5CE7),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            TextSpan(
+                              text: message['message'],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 
-  /// Construit la rangée de boutons d'action
+  /// Construit la rangée de boutons d'action avec champ de texte
   Widget _buildActionButtons(StreamContent stream) {
     return Row(
       children: [
-        // Bouton de réaction cœur
-        _buildActionButton(
-          icon: Icons.favorite,
-          color: Colors.red,
-          onTap: _sendHeartReaction,
+        // Champ de texte pour écrire des messages
+        Expanded(
+          flex: _isTextFieldFocused ? 4 : 3, // S'élargit quand focalisé
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: _isTextFieldFocused
+                    ? Colors.blue.withOpacity(0.7)
+                    : Colors.white.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: TextField(
+              controller: _messageController,
+              focusNode: _textFieldFocusNode,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: const InputDecoration(
+                hintText: 'Saisissez votre message...',
+                hintStyle: TextStyle(color: Colors.white54, fontSize: 14),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(vertical: 12),
+              ),
+              onSubmitted: (text) {
+                _sendMessage(stream, text);
+                _textFieldFocusNode.unfocus(); // Retirer le focus après envoi
+              },
+            ),
+          ),
         ),
-        const SizedBox(width: 12),
 
-        // Bouton de cadeaux
-        _buildActionButton(
-          icon: Icons.card_giftcard,
-          color: Colors.amber,
-          onTap: () => _showGiftInterface(stream),
-        ),
-        const SizedBox(width: 12),
+        // Bouton d'envoi (affiché uniquement quand le champ de texte est focalisé)
+        if (_isTextFieldFocused) ...[
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () {
+              _sendMessage(stream, _messageController.text);
+              _textFieldFocusNode.unfocus(); // Retirer le focus après envoi
+            },
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.send, color: Colors.white, size: 20),
+            ),
+          ),
+        ],
 
-        // Bouton co-host
-        _buildActionButton(
-          icon: Icons.people,
-          color: const Color(0xFF6C5CE7),
-          onTap: () => _showCoHostInterface(stream),
-        ),
-        const SizedBox(width: 12),
+        // Boutons d'action (masqués quand le champ de texte est focalisé)
+        if (!_isTextFieldFocused) ...[
+          const SizedBox(width: 12),
 
-        // Bouton de partage
-        _buildActionButton(
-          icon: Icons.share,
-          onTap: () => _shareStream(stream),
-        ),
+          // Bouton de cadeaux
+          _buildActionButton(
+            icon: Icons.card_giftcard,
+            color: Colors.amber,
+            onTap: () => _showGiftInterface(stream),
+          ),
+          const SizedBox(width: 12),
 
-        // Espace flexible pour pousser à droite si nécessaire
-        const Spacer(),
+          // Bouton co-host
+          _buildActionButton(
+            icon: Icons.people,
+            color: const Color(0xFF6C5CE7),
+            onTap: () => _showCoHostInterface(stream),
+          ),
+          const SizedBox(width: 12),
+
+          // Bouton de partage
+          _buildActionButton(
+            icon: Icons.share,
+            onTap: () => _shareStream(stream),
+          ),
+        ],
       ],
     );
   }
@@ -582,6 +698,40 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen>
   // ═══════════════════════════════════════════════════════════════
   // GESTION DES LIVES ET AUTO-JOIN
   // ═══════════════════════════════════════════════════════════════
+
+  /// Initialise quelques messages d'exemple pour les streams
+  void _initializeChatMessages() {
+    final sampleMessages = [
+      {'username': 'Alex_94', 'message': 'Salut tout le monde! 👋'},
+      {'username': 'Marie_L', 'message': 'Excellent live! 🔥'},
+      {'username': 'Tom_G', 'message': 'Continue comme ça! 💪'},
+    ];
+
+    for (final stream in widget.liveStreams) {
+      _chatMessages[stream.id] = List.from(sampleMessages);
+    }
+  }
+
+  /// Envoie un message dans le chat du stream actuel
+  void _sendMessage(StreamContent stream, String text) {
+    if (text.trim().isEmpty) return;
+
+    final message = {'username': 'Vous', 'message': text.trim()};
+
+    setState(() {
+      if (_chatMessages[stream.id] == null) {
+        _chatMessages[stream.id] = [];
+      }
+      _chatMessages[stream.id]!.add(message);
+
+      // Garder seulement les 10 derniers messages pour éviter la surcharge
+      if (_chatMessages[stream.id]!.length > 10) {
+        _chatMessages[stream.id]!.removeAt(0);
+      }
+    });
+
+    _messageController.clear();
+  }
 
   /// Rejoint automatiquement le live actuellement affiché
   /// Cette méthode simule la connexion automatique lors du défilement
