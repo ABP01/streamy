@@ -20,7 +20,6 @@ class LiveStreamService {
   Future<List<LiveStream>> fetchLiveStreams({
     int limit = 20,
     int offset = 0,
-    String? category,
     String? searchQuery,
     LiveStreamSort sort = LiveStreamSort.viewerCount,
   }) async {
@@ -37,14 +36,8 @@ class LiveStreamService {
         ''')
         .eq('is_live', true);
 
-    if (category != null && category != 'Tous') {
-      query = query.eq('category', category);
-    }
-
     if (searchQuery != null && searchQuery.isNotEmpty) {
-      query = query.or(
-        'title.ilike.%$searchQuery%,description.ilike.%$searchQuery%',
-      );
+      query = query.ilike('host_name', '%$searchQuery%');
     }
 
     query = query
@@ -78,11 +71,7 @@ class LiveStreamService {
 
   // --- Créer un nouveau live avec token Agora ---
   Future<LiveStream> createLiveStream({
-    required String title,
     required String hostId,
-    String? description,
-    String? category,
-    List<String>? tags,
     bool isPrivate = false,
     int maxViewers = 1000,
   }) async {
@@ -104,11 +93,7 @@ class LiveStreamService {
         .from('lives')
         .insert({
           'id': id,
-          'title': title,
-          'description': description,
           'host_id': hostId,
-          'category': category ?? 'Général',
-          'tags': tags,
           'is_private': isPrivate,
           'max_viewers': maxViewers,
           'is_live': true,
@@ -216,9 +201,7 @@ class LiveStreamService {
           )
         ''')
         .eq('is_live', true)
-        .or(
-          'title.ilike.%$query%,description.ilike.%$query%,category.ilike.%$query%',
-        )
+        .ilike('users.full_name', '%$query%')
         .order('viewer_count', ascending: false)
         .limit(limit);
 

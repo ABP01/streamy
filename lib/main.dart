@@ -1,5 +1,6 @@
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -10,13 +11,14 @@ import 'services/agora_debug_service.dart';
 import 'services/agora_error_handler.dart';
 import 'services/auth_service.dart';
 import 'services/live_stream_service.dart';
+import 'widgets/navigation_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Test de la configuration Agora en mode debug
   AgoraDebugService.testAgoraConfig();
-  
+
   // Test de connexion au backend
   final backendHealthy = await AgoraBackendService.testConnection();
   if (backendHealthy) {
@@ -30,7 +32,7 @@ void main() async {
     anonKey: AppConfig.supabaseAnonKey,
   );
 
-  runApp(const StreamyApp());
+  runApp(const ProviderScope(child: StreamyApp()));
 }
 
 class StreamyApp extends StatelessWidget {
@@ -69,7 +71,7 @@ class AuthGate extends StatelessWidget {
         if (session == null) {
           return const AuthPage();
         } else {
-          return const LiveSwipePage();
+          return const NavigationWrapper();
         }
       },
     );
@@ -697,10 +699,13 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
         try {
           final backendToken = await AgoraBackendService.getViewerToken(
             liveId: widget.live.agoraChannelId ?? widget.live.id,
-            userId: Supabase.instance.client.auth.currentUser?.id ?? 'anonymous',
+            userId:
+                Supabase.instance.client.auth.currentUser?.id ?? 'anonymous',
           );
           finalToken = backendToken.token;
-          print('✅ Token viewer obtenu via backend pour ${widget.live.agoraChannelId}');
+          print(
+            '✅ Token viewer obtenu via backend pour ${widget.live.agoraChannelId}',
+          );
         } catch (e) {
           print('⚠️ Erreur token backend, utilisation du token existant: $e');
           finalToken = token;
@@ -977,7 +982,7 @@ class _LiveStreamViewerState extends State<LiveStreamViewer> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.live.title,
+                  widget.live.hostName ?? 'Live Stream',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -1147,28 +1152,11 @@ class StartLivePage extends StatefulWidget {
 }
 
 class _StartLivePageState extends State<StartLivePage> {
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
   bool _isLoading = false;
   String? _error;
-  String _selectedCategory = 'Général';
-
-  final List<String> _categories = [
-    'Général',
-    'Gaming',
-    'Musique',
-    'Art',
-    'Sport',
-    'Cuisine',
-    'Tech',
-    'Éducation',
-    'Lifestyle',
-  ];
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -1187,24 +1175,14 @@ class _StartLivePageState extends State<StartLivePage> {
       return;
     }
 
-    final title = _titleController.text.trim();
-    if (title.isEmpty) {
-      setState(() {
-        _error = 'Le titre est requis';
-        _isLoading = false;
-      });
-      return;
-    }
+    // Plus de validation de titre - démarrage direct
 
     final liveId = const Uuid().v4();
 
     try {
       await Supabase.instance.client.from('lives').insert({
         'id': liveId,
-        'title': title,
-        'description': _descriptionController.text.trim(),
         'host_id': user.id,
-        'category': _selectedCategory,
         'is_live': true,
         'started_at': DateTime.now().toIso8601String(),
         'agora_channel_id': 'live_$liveId',
@@ -1220,7 +1198,6 @@ class _StartLivePageState extends State<StartLivePage> {
             builder: (context) => HostLivePage(
               live: LiveStream(
                 id: liveId,
-                title: title,
                 hostId: user.id,
                 startedAt: DateTime.now(),
                 isLive: true,
@@ -1283,14 +1260,14 @@ class _StartLivePageState extends State<StartLivePage> {
 
               // Contenu principal
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
+                child: Center(
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Aperçu de la caméra (placeholder)
                       Container(
-                        width: double.infinity,
-                        height: 200,
+                        width: 200,
+                        height: 300,
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(16),
@@ -1309,144 +1286,26 @@ class _StartLivePageState extends State<StartLivePage> {
                                 color: Colors.white,
                                 fontSize: 16,
                               ),
+                              textAlign: TextAlign.center,
                             ),
                             Text(
-                              'La vidéo apparaîtra ici',
+                              'Prêt à commencer ?',
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 14,
                               ),
+                              textAlign: TextAlign.center,
                             ),
                           ],
                         ),
                       ),
 
-                      const SizedBox(height: 32),
-
-                      // Formulaire
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Titre
-                            const Text(
-                              'Titre du live *',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _titleController,
-                              style: const TextStyle(color: Colors.white),
-                              decoration: InputDecoration(
-                                hintText: 'Donnez un titre accrocheur...',
-                                hintStyle: const TextStyle(
-                                  color: Colors.white54,
-                                ),
-                                filled: true,
-                                fillColor: Colors.white.withOpacity(0.1),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              maxLength: 100,
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            // Description
-                            const Text(
-                              'Description',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _descriptionController,
-                              style: const TextStyle(color: Colors.white),
-                              decoration: InputDecoration(
-                                hintText: 'Décrivez votre live...',
-                                hintStyle: const TextStyle(
-                                  color: Colors.white54,
-                                ),
-                                filled: true,
-                                fillColor: Colors.white.withOpacity(0.1),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              maxLines: 3,
-                              maxLength: 500,
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            // Catégorie
-                            const Text(
-                              'Catégorie',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: _selectedCategory,
-                                  onChanged: (String? newValue) {
-                                    if (newValue != null) {
-                                      setState(() {
-                                        _selectedCategory = newValue;
-                                      });
-                                    }
-                                  },
-                                  dropdownColor: const Color(0xFF667eea),
-                                  style: const TextStyle(color: Colors.white),
-                                  items: _categories
-                                      .map<DropdownMenuItem<String>>((
-                                        String value,
-                                      ) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value),
-                                        );
-                                      })
-                                      .toList(),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 48),
 
                       // Message d'erreur
                       if (_error != null) ...[
                         Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 32),
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: Colors.red.withOpacity(0.2),
@@ -1461,44 +1320,49 @@ class _StartLivePageState extends State<StartLivePage> {
                             textAlign: TextAlign.center,
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 32),
                       ],
 
-                      // Bouton de création
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
+                      // Bouton de démarrage direct
+                      Container(
+                        width: 200,
+                        height: 200,
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _createLive,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            shape: const CircleBorder(),
+                            elevation: 8,
                           ),
                           child: _isLoading
-                              ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
                                 )
-                              : const Row(
+                              : const Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.play_arrow, size: 24),
-                                    SizedBox(width: 8),
+                                    Icon(Icons.play_arrow, size: 48),
+                                    SizedBox(height: 8),
                                     Text(
-                                      'Commencer le live',
+                                      'COMMENCER\nLE LIVE',
                                       style: TextStyle(
-                                        fontSize: 18,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.bold,
                                       ),
+                                      textAlign: TextAlign.center,
                                     ),
                                   ],
                                 ),
                         ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      const Text(
+                        'Appuyez pour démarrer votre live instantanément',
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
@@ -1569,7 +1433,7 @@ class _HostLivePageState extends State<HostLivePage> {
       // Utiliser le token généré lors de la création du live
       final token = widget.live.agoraToken ?? '';
 
-      // Générer un token via le backend pour l'hôte  
+      // Générer un token via le backend pour l'hôte
       String finalToken = '';
       if (AppConfig.useAgoraToken) {
         try {
@@ -1578,7 +1442,9 @@ class _HostLivePageState extends State<HostLivePage> {
             userId: Supabase.instance.client.auth.currentUser?.id ?? 'host',
           );
           finalToken = backendToken.token;
-          print('✅ Token hôte obtenu via backend pour ${widget.live.agoraChannelId}');
+          print(
+            '✅ Token hôte obtenu via backend pour ${widget.live.agoraChannelId}',
+          );
         } catch (e) {
           print('⚠️ Erreur token backend, utilisation du token existant: $e');
           finalToken = token;
@@ -1677,7 +1543,7 @@ class _HostLivePageState extends State<HostLivePage> {
         elevation: 0,
         leading: const SizedBox(), // Masquer le bouton retour
         title: Text(
-          widget.live.title,
+          widget.live.hostName ?? 'Live Stream',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,

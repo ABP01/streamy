@@ -375,19 +375,8 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         child: Stack(
           children: [
-            // Image de fond
-            if (live.thumbnail != null)
-              Positioned.fill(
-                child: Image.network(
-                  live.thumbnail!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return _buildPlaceholderBackground();
-                  },
-                ),
-              )
-            else
-              _buildPlaceholderBackground(),
+            // Image de fond - simplifié sans thumbnail
+            _buildPlaceholderBackground(),
 
             // Gradient overlay
             Positioned.fill(
@@ -449,9 +438,9 @@ class _HomeScreenState extends State<HomeScreen>
 
                   const SizedBox(height: 16),
 
-                  // Titre du live
+                  // Nom du streamer (plus de titre)
                   Text(
-                    live.title,
+                    live.hostName ?? 'Live Stream',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -463,45 +452,34 @@ class _HomeScreenState extends State<HomeScreen>
 
                   const SizedBox(height: 8),
 
-                  // Description
-                  if (live.description != null)
-                    Text(
-                      live.description!,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  // Durée du live (plus de description)
+                  Text(
+                    'En direct depuis ${live.formattedDuration}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
 
                   const SizedBox(height: 16),
 
-                  // Tags
-                  if (live.tags != null && live.tags!.isNotEmpty)
-                    Wrap(
-                      spacing: 8,
-                      children: live.tags!.take(3).map((tag) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.8),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            '#$tag',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
+                  // Plus de tags - affichons les stats du live
+                  Row(
+                    children: [
+                      Icon(Icons.visibility, color: Colors.white70, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        '${live.viewerCount} viewers',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                      SizedBox(width: 16),
+                      Icon(Icons.favorite, color: Colors.red, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        '${live.likeCount}',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -637,7 +615,6 @@ class _CreateLiveSheet extends StatefulWidget {
 class _CreateLiveSheetState extends State<_CreateLiveSheet> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final List<String> _tags = [];
   bool _isCreating = false;
 
   @override
@@ -759,11 +736,7 @@ class _CreateLiveSheetState extends State<_CreateLiveSheet> {
       final liveStreamService = LiveStreamService();
       final live = await liveStreamService.createLiveStream(
         hostId: 'current_user_id', // À remplacer par l'ID utilisateur réel
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty
-            ? null
-            : _descriptionController.text.trim(),
-        tags: _tags,
+        isPrivate: false,
       );
 
       Navigator.pop(context);

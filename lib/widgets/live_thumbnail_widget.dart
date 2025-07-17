@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:timeago/timeago.dart' as timeago;
+import 'package:flutter/material.dart';
+
 import '../models/models.dart';
 
 class LiveThumbnailWidget extends StatelessWidget {
@@ -36,13 +36,13 @@ class LiveThumbnailWidget extends StatelessWidget {
             children: [
               // Image de fond ou placeholder
               _buildThumbnail(),
-              
+
               // Overlay avec gradient
               _buildOverlay(),
-              
+
               // Informations en premier plan
               _buildInfo(),
-              
+
               // Indicateur LIVE
               if (live.isLive) _buildLiveIndicator(),
             ],
@@ -53,16 +53,7 @@ class LiveThumbnailWidget extends StatelessWidget {
   }
 
   Widget _buildThumbnail() {
-    if (live.thumbnail != null && live.thumbnail!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: live.thumbnail!,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        placeholder: (context, url) => _buildPlaceholder(),
-        errorWidget: (context, url, error) => _buildPlaceholder(),
-      );
-    }
+    // Plus de thumbnail - on affiche juste un placeholder avec l'icône live
     return _buildPlaceholder();
   }
 
@@ -72,18 +63,11 @@ class LiveThumbnailWidget extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF667eea),
-            Color(0xFF764ba2),
-          ],
+          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
         ),
       ),
       child: const Center(
-        child: Icon(
-          Icons.videocam,
-          size: 48,
-          color: Colors.white54,
-        ),
+        child: Icon(Icons.videocam, size: 48, color: Colors.white54),
       ),
     );
   }
@@ -94,10 +78,7 @@ class LiveThumbnailWidget extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            Colors.black.withOpacity(0.7),
-          ],
+          colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
           stops: const [0.5, 1.0],
         ),
       ),
@@ -112,9 +93,9 @@ class LiveThumbnailWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Titre du live
+          // Nom du streamer (plus de titre)
           Text(
-            live.title,
+            live.hostName ?? 'Live Stream',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -124,7 +105,7 @@ class LiveThumbnailWidget extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
-          
+
           // Nom du streamer
           Row(
             children: [
@@ -139,7 +120,8 @@ class LiveThumbnailWidget extends StatelessWidget {
                           width: 20,
                           height: 20,
                           fit: BoxFit.cover,
-                          errorWidget: (context, url, error) => _buildHostIcon(),
+                          errorWidget: (context, url, error) =>
+                              _buildHostIcon(),
                         ),
                       )
                     : _buildHostIcon(),
@@ -148,20 +130,14 @@ class LiveThumbnailWidget extends StatelessWidget {
               Expanded(
                 child: Text(
                   live.hostName ?? 'Streamer',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          
-          if (showStats) ...[
-            const SizedBox(height: 8),
-            _buildStats(),
-          ],
+
+          if (showStats) ...[const SizedBox(height: 8), _buildStats()],
         ],
       ),
     );
@@ -182,36 +158,29 @@ class LiveThumbnailWidget extends StatelessWidget {
     return Row(
       children: [
         // Viewers
-        _buildStatItem(
-          Icons.visibility,
-          _formatNumber(live.viewerCount),
-        ),
+        _buildStatItem(Icons.visibility, _formatNumber(live.viewerCount)),
         const SizedBox(width: 12),
-        
+
         // Likes
-        _buildStatItem(
-          Icons.favorite,
-          _formatNumber(live.likeCount),
-        ),
-        
-        if (live.category != null) ...[
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              live.category!,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-              ),
+        _buildStatItem(Icons.favorite, _formatNumber(live.likeCount)),
+
+        // Plus de catégorie - ajoutons la durée du live
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            live.formattedDuration,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
             ),
           ),
-        ],
+        ),
       ],
     );
   }
@@ -220,18 +189,11 @@ class LiveThumbnailWidget extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 12,
-          color: Colors.white70,
-        ),
+        Icon(icon, size: 12, color: Colors.white70),
         const SizedBox(width: 2),
         Text(
           value,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 11,
-          ),
+          style: const TextStyle(color: Colors.white70, fontSize: 11),
         ),
       ],
     );
@@ -299,9 +261,7 @@ class LiveGridWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (lives.isEmpty) {
@@ -309,18 +269,11 @@ class LiveGridWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.videocam_off,
-              size: 64,
-              color: Colors.grey,
-            ),
+            Icon(Icons.videocam_off, size: 64, color: Colors.grey),
             SizedBox(height: 16),
             Text(
               'Aucun live en cours',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-              ),
+              style: TextStyle(fontSize: 18, color: Colors.grey),
             ),
           ],
         ),

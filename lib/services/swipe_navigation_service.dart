@@ -163,13 +163,7 @@ class SwipeNavigationService {
         );
       }
 
-      // Précharger la thumbnail si disponible
-      if (nextLive.thumbnail != null) {
-        await precacheImage(
-          NetworkImage(nextLive.thumbnail!),
-          NavigationService.navigatorKey.currentContext!,
-        );
-      }
+      // Plus de thumbnail à précharger - supprimé dans la simplification
 
       // Précharger les données du chat récent
       // await ChatService.preloadRecentMessages(nextLive.id);

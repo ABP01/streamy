@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/models.dart';
 import '../screens/messaging_screen.dart';
 import '../screens/search_users_screen.dart';
 import '../screens/tiktok_style_live_screen.dart';
+import '../screens/user_profile_screen.dart';
 import '../services/cache_service.dart';
 import '../services/swipe_navigation_service.dart';
 
@@ -42,14 +44,8 @@ class _NavigationWrapperState extends State<NavigationWrapper> {
         TikTokStyleLiveScreen(initialLives: _lives),
         const SearchUsersScreen(),
         const MessagingScreen(),
-        Container(
-          color: Colors.black,
-          child: const Center(
-            child: Text(
-              'Profil',
-              style: TextStyle(color: Colors.white, fontSize: 24),
-            ),
-          ),
+        UserProfileScreen(
+          userId: Supabase.instance.client.auth.currentUser?.id ?? '',
         ),
       ]);
 
@@ -108,23 +104,33 @@ class _NavigationWrapperState extends State<NavigationWrapper> {
   }
 
   Widget _buildBottomNavigationBar() {
-    return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed,
-      backgroundColor: Colors.black,
-      selectedItemColor: Colors.purple,
-      unselectedItemColor: Colors.grey,
-      currentIndex: _currentIndex,
-      onTap: (index) {
-        setState(() {
-          _currentIndex = index;
-        });
-      },
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
-        BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Découvrir'),
-        BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Messages'),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
-      ],
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
+        ),
+      ),
+      child: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.transparent,
+        selectedItemColor: Colors.purple,
+        unselectedItemColor: Colors.grey,
+        currentIndex: _currentIndex,
+        elevation: 0,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Découvrir'),
+          BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Messages'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
+        ],
+      ),
     );
   }
 }

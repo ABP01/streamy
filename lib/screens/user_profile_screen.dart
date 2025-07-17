@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../models/models.dart';
+import '../screens/settings_screen.dart';
 import '../services/follow_service.dart';
 
 class UserProfileScreen extends StatefulWidget {
@@ -21,9 +22,6 @@ class UserProfileScreen extends StatefulWidget {
 class _UserProfileScreenState extends State<UserProfileScreen>
     with TickerProviderStateMixin {
   UserProfile? _userProfile;
-  List<LiveStream> _userLives = [];
-  List<Gift> _userGifts = [];
-  Map<String, int> _followStats = {};
   bool _isLoading = true;
   bool _isFollowing = false;
   bool _isLoadingFollow = false;
@@ -35,7 +33,6 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadUserProfile();
-    _loadUserStats();
   }
 
   @override
@@ -87,19 +84,6 @@ class _UserProfileScreenState extends State<UserProfileScreen>
           _isLoading = false;
         });
       }
-    }
-  }
-
-  Future<void> _loadUserStats() async {
-    try {
-      final stats = await FollowService.getFollowStats(widget.userId);
-      if (mounted) {
-        setState(() {
-          _followStats = stats;
-        });
-      }
-    } catch (e) {
-      print('Erreur chargement stats: $e');
     }
   }
 
@@ -337,6 +321,43 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                     _buildFollowButton(),
                     _buildMessageButton(),
                     _buildGiftButton(),
+                  ],
+                ),
+
+              // Bouton paramètres pour l'utilisateur actuel
+              if (widget.isCurrentUser)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SettingsScreen(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Modifier'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SettingsScreen(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.settings),
+                      label: const Text('Paramètres'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[800],
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
                   ],
                 ),
             ],

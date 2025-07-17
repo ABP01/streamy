@@ -201,9 +201,9 @@ class _LiveOverlayWidgetState extends State<LiveOverlayWidget>
 
         const SizedBox(height: 12),
 
-        // Titre du live
+        // Nom du streamer (plus de titre)
         Text(
-          widget.live.title,
+          widget.live.hostName ?? 'Live Stream',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 18,
@@ -213,15 +213,12 @@ class _LiveOverlayWidgetState extends State<LiveOverlayWidget>
           overflow: TextOverflow.ellipsis,
         ),
 
-        if (widget.live.description != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            widget.live.description!,
-            style: TextStyle(color: Colors.grey[300], fontSize: 14),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+        // Durée du live
+        const SizedBox(height: 4),
+        Text(
+          widget.live.formattedDuration,
+          style: TextStyle(color: Colors.grey[300], fontSize: 14),
+        ),
       ],
     );
   }

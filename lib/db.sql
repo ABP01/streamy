@@ -30,15 +30,10 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- Table des lives (complète)
+-- Table des lives (simplifiée)
 CREATE TABLE IF NOT EXISTS lives (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  title TEXT NOT NULL,
-  description TEXT,
   host_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  category TEXT DEFAULT 'Général',
-  tags TEXT[],
-  thumbnail TEXT,
   viewer_count INTEGER DEFAULT 0,
   like_count INTEGER DEFAULT 0,
   gift_count INTEGER DEFAULT 0,

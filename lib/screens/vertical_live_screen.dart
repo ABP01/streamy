@@ -293,36 +293,13 @@ class _VerticalLiveScreenState extends State<VerticalLiveScreen>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Fond avec l'image du live ou un placeholder
-          if (live.thumbnail != null)
-            CachedNetworkImage(
-              imageUrl: live.thumbnail!,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(
-                color: Colors.grey[900],
-                child: const Center(
-                  child: CircularProgressIndicator(color: Colors.blue),
-                ),
-              ),
-              errorWidget: (context, url, error) => Container(
-                color: Colors.grey[900],
-                child: const Icon(Icons.error, color: Colors.red, size: 50),
-              ),
-            )
-          else
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.blue.withOpacity(0.3),
-                    Colors.purple.withOpacity(0.3),
-                    Colors.black,
-                  ],
-                ),
-              ),
+          // Fond noir simple pour le live
+          Container(
+            color: Colors.black,
+            child: const Center(
+              child: Icon(Icons.videocam, color: Colors.white54, size: 100),
             ),
+          ),
 
           // Overlay sombre pour la lisibilité
           Container(
@@ -366,7 +343,7 @@ class _VerticalLiveScreenState extends State<VerticalLiveScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    live.title,
+                    live.hostName ?? 'Live Stream',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -436,7 +413,7 @@ class _VerticalLiveScreenState extends State<VerticalLiveScreen>
                           ),
                         ),
                         Text(
-                          live.category ?? 'Général',
+                          'Live • ${live.formattedDuration}',
                           style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 12,
@@ -474,23 +451,19 @@ class _VerticalLiveScreenState extends State<VerticalLiveScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    live.title,
+                    live.hostName ?? 'Live Stream',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (live.description != null &&
-                      live.description!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      live.description!,
-                      style: const TextStyle(color: Colors.grey, fontSize: 14),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                  // Afficher la durée du live au lieu de la description
+                  const SizedBox(height: 8),
+                  Text(
+                    'En direct depuis ${live.formattedDuration}',
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
                   const SizedBox(height: 12),
                   LiveStatsWidget(liveId: live.id),
                 ],

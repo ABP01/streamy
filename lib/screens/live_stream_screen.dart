@@ -1,10 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../models/live_stream.dart';
-import '../services/chat_service.dart';
 import '../services/live_stream_service.dart';
 import '../widgets/enhanced_chat_widget.dart';
 import '../widgets/gift_animations.dart';
@@ -299,15 +297,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
           ],
         ),
       ),
-      child: _currentLive!.thumbnail != null
-          ? Image.network(
-              _currentLive!.thumbnail!,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return _buildPlaceholderVideo();
-              },
-            )
-          : _buildPlaceholderVideo(),
+      child: _buildPlaceholderVideo(), // Plus de thumbnail
     );
   }
 
@@ -381,7 +371,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _currentLive!.title,
+                    _currentLive!.hostName ?? 'Live en cours',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,

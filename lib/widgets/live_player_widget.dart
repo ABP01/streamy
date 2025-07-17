@@ -21,34 +21,35 @@ class _LivePlayerWidgetState extends State<LivePlayerWidget> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Image de fond ou placeholder
+        // Container de base avec un gradient
         Container(
           width: double.infinity,
           height: double.infinity,
           decoration: BoxDecoration(
             color: Colors.grey[900],
-            image: widget.live.thumbnail != null
-                ? DecorationImage(
-                    image: NetworkImage(widget.live.thumbnail!),
-                    fit: BoxFit.cover,
-                  )
-                : null,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.purple.withValues(alpha: 0.3),
+                Colors.pink.withValues(alpha: 0.3),
+                Colors.black.withValues(alpha: 0.8),
+              ],
+            ),
           ),
-          child: widget.live.thumbnail == null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.live_tv, size: 64, color: Colors.grey[600]),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Live en cours',
-                        style: TextStyle(color: Colors.grey[400], fontSize: 18),
-                      ),
-                    ],
-                  ),
-                )
-              : null,
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.live_tv, size: 64, color: Colors.white54),
+                SizedBox(height: 16),
+                Text(
+                  'Live en cours',
+                  style: TextStyle(color: Colors.white54, fontSize: 18),
+                ),
+              ],
+            ),
+          ),
         ),
 
         // Overlay d'assombrissement pour améliorer la lisibilité
@@ -139,7 +140,7 @@ class _LivePlayerWidgetState extends State<LivePlayerWidget> {
             child: GestureDetector(
               onTap: () {
                 // Actions de contrôle du player
-                print('Player tapped for live: ${widget.live.title}');
+                print('Player tapped for live: ${widget.live.id}');
               },
               child: Container(color: Colors.transparent),
             ),

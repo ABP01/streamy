@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/models.dart';
+import '../screens/live_stream_screen.dart';
 import '../screens/messaging_screen.dart';
 import '../screens/search_users_screen.dart';
+import '../screens/settings_screen.dart';
 import '../services/live_stream_service.dart';
 import '../services/swipe_navigation_service.dart';
+import '../widgets/gift_shop_widget.dart';
 import '../widgets/live_overlay_widget.dart';
 import '../widgets/live_player_widget.dart';
 
@@ -150,6 +154,43 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
     }
   }
 
+  Future<void> _startLive() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Vous devez être connecté pour démarrer un live'),
+          ),
+        );
+        return;
+      }
+
+      // Fermer la modal
+      Navigator.pop(context);
+
+      // Créer le live
+      final liveStreamService = LiveStreamService();
+      final newLive = await liveStreamService.createLiveStream(hostId: user.id);
+
+      // Navigation vers l'écran de live en tant qu'hôte
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                LiveStreamScreen(liveId: newLive.id, isHost: true),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Erreur lors du démarrage du live: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur: ${e.toString()}')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -223,6 +264,9 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
 
           // Indicateur de position
           _buildPositionIndicator(),
+
+          // Bouton flottant pour démarrer un live
+          _buildStartLiveButton(),
         ],
       ),
     );
@@ -258,20 +302,136 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
               ),
             ),
 
-            // Bouton messages
-            IconButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const MessagingScreen(),
+            // Boutons à droite
+            Row(
+              children: [
+                // Bouton messages
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MessagingScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.message,
+                    color: Colors.white,
+                    size: 28,
                   ),
-                );
-              },
-              icon: const Icon(Icons.message, color: Colors.white, size: 28),
+                ),
+
+                // Bouton cadeaux/tokens
+                IconButton(
+                  onPressed: _showGiftShop,
+                  icon: const Icon(
+                    Icons.card_giftcard,
+                    color: Colors.amber,
+                    size: 28,
+                  ),
+                ),
+
+                // Bouton menu/paramètres
+                PopupMenuButton<String>(
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                  color: Colors.grey[900],
+                  onSelected: (String value) {
+                    switch (value) {
+                      case 'settings':
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SettingsScreen(),
+                          ),
+                        );
+                        break;
+                      case 'refresh':
+                        _refreshLives();
+                        break;
+                    }
+                  },
+                  itemBuilder: (BuildContext context) => [
+                    const PopupMenuItem<String>(
+                      value: 'settings',
+                      child: Row(
+                        children: [
+                          Icon(Icons.settings, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            'Paramètres',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'refresh',
+                      child: Row(
+                        children: [
+                          Icon(Icons.refresh, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            'Actualiser',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStartLiveButton() {
+    return Positioned(
+      right: 16,
+      bottom: 100,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Colors.purple, Colors.pink],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.purple.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          onPressed: _startLive,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: const Icon(Icons.add, color: Colors.white, size: 32),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showGiftShop() async {
+    if (_lives.isEmpty) return;
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => GiftShopWidget(
+        liveId: _lives[_currentIndex].id,
+        receiverId: _lives[_currentIndex].hostId,
       ),
     );
   }

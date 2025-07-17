@@ -1,36 +1,20 @@
 import 'package:flutter/material.dart';
 
-enum MessageType {
-  text,
-  gift,
-  system,
-  like,
-  join,
-  leave,
-}
+enum MessageType { text, gift, system, like, join, leave }
 
-enum LiveStatus {
-  pending,
-  live,
-  ended,
-}
+enum LiveStatus { pending, live, ended }
 
 class LiveStream {
   final String id;
-  final String title;
   final String hostId;
   final String? hostName;
   final String? hostAvatar;
-  final String? description;
-  final String? thumbnail;
   final int viewerCount;
   final int likeCount;
   final int giftCount;
   final bool isLive;
   final DateTime? startedAt;
   final DateTime? endedAt;
-  final List<String>? tags;
-  final String? category;
   final bool isPrivate;
   final int maxViewers;
   final Map<String, dynamic>? metadata;
@@ -41,20 +25,15 @@ class LiveStream {
 
   LiveStream({
     required this.id,
-    required this.title,
     required this.hostId,
     this.hostName,
     this.hostAvatar,
-    this.description,
-    this.thumbnail,
     this.viewerCount = 0,
     this.likeCount = 0,
     this.giftCount = 0,
     this.isLive = false,
     this.startedAt,
     this.endedAt,
-    this.tags,
-    this.category,
     this.isPrivate = false,
     this.maxViewers = 1000,
     this.metadata,
@@ -67,20 +46,19 @@ class LiveStream {
   factory LiveStream.fromJson(Map<String, dynamic> json) {
     return LiveStream(
       id: json['id'] as String,
-      title: json['title'] as String? ?? 'Live sans titre',
       hostId: json['host_id'] as String? ?? '',
       hostName: json['host_name'] as String?,
       hostAvatar: json['host_avatar'] as String?,
-      description: json['description'] as String?,
-      thumbnail: json['thumbnail'] as String?,
       viewerCount: json['viewer_count'] as int? ?? 0,
       likeCount: json['like_count'] as int? ?? 0,
       giftCount: json['gift_count'] as int? ?? 0,
       isLive: json['is_live'] as bool? ?? false,
-      startedAt: json['started_at'] != null ? DateTime.parse(json['started_at']) : null,
-      endedAt: json['ended_at'] != null ? DateTime.parse(json['ended_at']) : null,
-      tags: json['tags'] != null ? List<String>.from(json['tags']) : null,
-      category: json['category'] as String?,
+      startedAt: json['started_at'] != null
+          ? DateTime.parse(json['started_at'])
+          : null,
+      endedAt: json['ended_at'] != null
+          ? DateTime.parse(json['ended_at'])
+          : null,
       isPrivate: json['is_private'] as bool? ?? false,
       maxViewers: json['max_viewers'] as int? ?? 1000,
       metadata: json['metadata'] as Map<String, dynamic>?,
@@ -89,8 +67,8 @@ class LiveStream {
       duration: (json['duration'] as num?)?.toDouble(),
       recentMessages: json['recent_messages'] != null
           ? (json['recent_messages'] as List)
-              .map((msg) => LiveStreamMessage.fromJson(msg))
-              .toList()
+                .map((msg) => LiveStreamMessage.fromJson(msg))
+                .toList()
           : null,
     );
   }
@@ -98,20 +76,15 @@ class LiveStream {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'title': title,
       'host_id': hostId,
       'host_name': hostName,
       'host_avatar': hostAvatar,
-      'description': description,
-      'thumbnail': thumbnail,
       'viewer_count': viewerCount,
       'like_count': likeCount,
       'gift_count': giftCount,
       'is_live': isLive,
       'started_at': startedAt?.toIso8601String(),
       'ended_at': endedAt?.toIso8601String(),
-      'tags': tags,
-      'category': category,
       'is_private': isPrivate,
       'max_viewers': maxViewers,
       'metadata': metadata,
@@ -124,20 +97,15 @@ class LiveStream {
 
   LiveStream copyWith({
     String? id,
-    String? title,
     String? hostId,
     String? hostName,
     String? hostAvatar,
-    String? description,
-    String? thumbnail,
     int? viewerCount,
     int? likeCount,
     int? giftCount,
     bool? isLive,
     DateTime? startedAt,
     DateTime? endedAt,
-    List<String>? tags,
-    String? category,
     bool? isPrivate,
     int? maxViewers,
     Map<String, dynamic>? metadata,
@@ -148,20 +116,15 @@ class LiveStream {
   }) {
     return LiveStream(
       id: id ?? this.id,
-      title: title ?? this.title,
       hostId: hostId ?? this.hostId,
       hostName: hostName ?? this.hostName,
       hostAvatar: hostAvatar ?? this.hostAvatar,
-      description: description ?? this.description,
-      thumbnail: thumbnail ?? this.thumbnail,
       viewerCount: viewerCount ?? this.viewerCount,
       likeCount: likeCount ?? this.likeCount,
       giftCount: giftCount ?? this.giftCount,
       isLive: isLive ?? this.isLive,
       startedAt: startedAt ?? this.startedAt,
       endedAt: endedAt ?? this.endedAt,
-      tags: tags ?? this.tags,
-      category: category ?? this.category,
       isPrivate: isPrivate ?? this.isPrivate,
       maxViewers: maxViewers ?? this.maxViewers,
       metadata: metadata ?? this.metadata,
@@ -189,15 +152,19 @@ class LiveStream {
   // 👁 Formatted viewers like 12.4K or 1.2M
   String get formattedViewerCount {
     if (viewerCount < 1000) return viewerCount.toString();
-    if (viewerCount < 1000000) return '${(viewerCount / 1000).toStringAsFixed(1)}K';
+    if (viewerCount < 1000000)
+      return '${(viewerCount / 1000).toStringAsFixed(1)}K';
     return '${(viewerCount / 1000000).toStringAsFixed(1)}M';
   }
 
   // ✅ Helpers
   bool get isEnded => endedAt != null;
   bool get isOngoing => isLive && startedAt != null && endedAt == null;
-  LiveStatus get status =>
-      isEnded ? LiveStatus.ended : isOngoing ? LiveStatus.live : LiveStatus.pending;
+  LiveStatus get status => isEnded
+      ? LiveStatus.ended
+      : isOngoing
+      ? LiveStatus.live
+      : LiveStatus.pending;
 }
 
 class LiveStreamMessage {
