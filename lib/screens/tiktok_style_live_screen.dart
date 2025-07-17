@@ -9,9 +9,9 @@ import '../screens/search_users_screen.dart';
 import '../screens/settings_screen.dart';
 import '../services/live_stream_service.dart';
 import '../services/swipe_navigation_service.dart';
+import '../widgets/enhanced_live_player.dart';
 import '../widgets/gift_shop_widget.dart';
 import '../widgets/live_overlay_widget.dart';
-import '../widgets/live_player_widget.dart';
 
 class TikTokStyleLiveScreen extends StatefulWidget {
   final List<LiveStream>? initialLives;
@@ -237,6 +237,34 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
     }
   }
 
+  void _toggleOverlay() {
+    // Méthode pour basculer l'affichage de l'overlay
+    // Cette fonction peut être étendue selon les besoins
+    setState(() {
+      // Toggle logic here if needed
+    });
+  }
+
+  void _showErrorSnackBar(String error) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Erreur: $error'),
+        backgroundColor: Colors.red.withOpacity(0.8),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Réessayer',
+          textColor: Colors.white,
+          onPressed: () {
+            _refreshLives();
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -398,9 +426,13 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
                 return Stack(
                   children: [
                     // Player vidéo en arrière-plan
-                    LivePlayerWidget(
+                    EnhancedLivePlayer(
                       live: live,
                       isActive: index == _currentIndex,
+                      onPlayerTap: _toggleOverlay,
+                      onError: (error) {
+                        _showErrorSnackBar(error);
+                      },
                     ),
 
                     // Overlay avec informations et contrôles
