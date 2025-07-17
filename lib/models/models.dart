@@ -342,3 +342,143 @@ class UserProfile {
 
   String get displayName => fullName ?? username ?? email.split('@').first;
 }
+
+// Modèle pour les messages privés
+class PrivateMessage {
+  final String id;
+  final String conversationId;
+  final String senderId;
+  final String recipientId;
+  final String content;
+  final String? mediaUrl;
+  final String? mediaType;
+  final DateTime sentAt;
+  final bool isRead;
+  final DateTime? readAt;
+  final UserProfile? sender;
+  final UserProfile? recipient;
+
+  PrivateMessage({
+    required this.id,
+    required this.conversationId,
+    required this.senderId,
+    required this.recipientId,
+    required this.content,
+    this.mediaUrl,
+    this.mediaType,
+    required this.sentAt,
+    this.isRead = false,
+    this.readAt,
+    this.sender,
+    this.recipient,
+  });
+
+  factory PrivateMessage.fromJson(Map<String, dynamic> json) {
+    return PrivateMessage(
+      id: json['id'] as String,
+      conversationId: json['conversation_id'] as String,
+      senderId: json['sender_id'] as String,
+      recipientId: json['recipient_id'] as String,
+      content: json['content'] as String,
+      mediaUrl: json['media_url'] as String?,
+      mediaType: json['media_type'] as String?,
+      sentAt: DateTime.parse(json['sent_at'] as String),
+      isRead: json['is_read'] as bool? ?? false,
+      readAt: json['read_at'] != null
+          ? DateTime.parse(json['read_at'] as String)
+          : null,
+      sender: json['sender'] != null
+          ? UserProfile.fromJson(json['sender'])
+          : null,
+      recipient: json['recipient'] != null
+          ? UserProfile.fromJson(json['recipient'])
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'conversation_id': conversationId,
+      'sender_id': senderId,
+      'recipient_id': recipientId,
+      'content': content,
+      'media_url': mediaUrl,
+      'media_type': mediaType,
+      'sent_at': sentAt.toIso8601String(),
+      'is_read': isRead,
+      'read_at': readAt?.toIso8601String(),
+    };
+  }
+
+  bool get hasMedia => mediaUrl != null && mediaUrl!.isNotEmpty;
+  bool get isImage => mediaType?.startsWith('image/') ?? false;
+  bool get isVideo => mediaType?.startsWith('video/') ?? false;
+}
+
+// Modèle pour les conversations
+class Conversation {
+  final String id;
+  final String participant1Id;
+  final String participant2Id;
+  final String? lastMessage;
+  final DateTime lastMessageAt;
+  final DateTime createdAt;
+  final UserProfile? participant1;
+  final UserProfile? participant2;
+  final int? unreadCount;
+
+  Conversation({
+    required this.id,
+    required this.participant1Id,
+    required this.participant2Id,
+    this.lastMessage,
+    required this.lastMessageAt,
+    required this.createdAt,
+    this.participant1,
+    this.participant2,
+    this.unreadCount,
+  });
+
+  factory Conversation.fromJson(Map<String, dynamic> json) {
+    return Conversation(
+      id: json['id'] as String,
+      participant1Id: json['participant1_id'] as String,
+      participant2Id: json['participant2_id'] as String,
+      lastMessage: json['last_message'] as String?,
+      lastMessageAt: DateTime.parse(json['last_message_at'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String),
+      participant1: json['participant1'] != null
+          ? UserProfile.fromJson(json['participant1'])
+          : null,
+      participant2: json['participant2'] != null
+          ? UserProfile.fromJson(json['participant2'])
+          : null,
+      unreadCount: json['unread_count'] as int?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'participant1_id': participant1Id,
+      'participant2_id': participant2Id,
+      'last_message': lastMessage,
+      'last_message_at': lastMessageAt.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
+      'unread_count': unreadCount,
+    };
+  }
+
+  UserProfile? getOtherParticipant(String currentUserId) {
+    if (participant1Id == currentUserId) {
+      return participant2;
+    } else {
+      return participant1;
+    }
+  }
+
+  String getOtherParticipantId(String currentUserId) {
+    return participant1Id == currentUserId ? participant2Id : participant1Id;
+  }
+}

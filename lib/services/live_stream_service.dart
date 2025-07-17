@@ -63,6 +63,19 @@ class LiveStreamService {
     }).toList();
   }
 
+  // --- Interagir avec un live ---
+  Future<void> incrementLikeCount(String liveId) async {
+    await _supabase.rpc('increment_like_count', params: {'live_id': liveId});
+  }
+
+  Future<void> incrementViewerCount(String liveId) async {
+    await _supabase.rpc('increment_viewer_count', params: {'live_id': liveId});
+  }
+
+  Future<void> decrementViewerCount(String liveId) async {
+    await _supabase.rpc('decrement_viewer_count', params: {'live_id': liveId});
+  }
+
   // --- Créer un nouveau live avec token Agora ---
   Future<LiveStream> createLiveStream({
     required String title,

@@ -48,18 +48,21 @@ dependencies:
   shared_preferences: ^2.3.2
   crypto: ^3.0.6
   
-  # État et navigation
+  # Navigation et état
   go_router: ^14.6.1
   riverpod: ^2.5.1
   flutter_riverpod: ^2.5.1
+  
+  # Médias et caméra
+  camera: ^0.11.0+2
+  video_player: ^2.9.2
   
   # Notifications et feedback
   flutter_local_notifications: ^17.2.3
   vibration: ^2.0.0
   
-  # Audio/Video
-  camera: ^0.11.0+2
-  video_player: ^2.9.2
+  # Animations avancées
+  lottie: ^3.1.2
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -75,6 +78,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  
+  # Package pour générer les icônes d'application
+  flutter_launcher_icons: ^0.13.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -88,6 +94,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/.env
+    - assets/images/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -119,3 +126,25 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Configuration des icônes d'application
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/logostreamypng.png"
+  min_sdk_android: 21 # Android 5.0
+  web:
+    generate: true
+    image_path: "assets/images/logostreamypng.png"
+    background_color: "#1976D2"
+    theme_color: "#1976D2"
+  windows:
+    generate: true
+    image_path: "assets/images/logostreamypng.png"
+    icon_size: 48 # min:48, max:256, default: 48
+  macos:
+    generate: true
+    image_path: "assets/images/logostreamypng.png"
+  # Configuration adaptative pour Android 12+
+  adaptive_icon_background: "#1976D2"
+  adaptive_icon_foreground: "assets/images/logostreamypng.png"
