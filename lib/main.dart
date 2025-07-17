@@ -12,6 +12,7 @@ import 'services/agora_debug_service.dart';
 import 'services/agora_error_handler.dart';
 import 'services/auth_service.dart';
 import 'services/live_stream_service.dart';
+import 'utils/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +55,9 @@ class StreamyApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
+      // Utilisation du système de navigation amélioré
+      onGenerateRoute: AppRouter.generateRoute,
+      initialRoute: AppRouter.splash,
       home: const AuthGate(),
     );
   }

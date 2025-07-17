@@ -9,6 +9,7 @@ import '../screens/user_profile_screen.dart';
 import '../services/cache_service.dart';
 import '../services/live_stream_service.dart';
 import '../widgets/floating_live_button.dart';
+import '../widgets/quick_screen_access_widget.dart';
 
 /// 🏠 NavigationWrapper - Page principale avec BottomNav et preloader
 /// Tabs: Lives (TikTok style), Découvrir, Messages, Profil
@@ -145,6 +146,18 @@ class _NavigationWrapperState extends State<NavigationWrapper> {
                 ),
               ),
             ),
+
+          // Bouton d'accès rapide aux écrans
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 10,
+            right: 20,
+            child: FloatingActionButton.small(
+              onPressed: () => QuickAccessHelper.showQuickAccess(context),
+              backgroundColor: Colors.black.withOpacity(0.7),
+              foregroundColor: Colors.white,
+              child: const Icon(Icons.apps, size: 20),
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
