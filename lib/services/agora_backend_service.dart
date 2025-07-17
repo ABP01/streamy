@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 class AgoraBackendService {
   static const String _baseUrl = kDebugMode
       ? 'http://10.0.2.2:3000/api/agora'
-      : 'http://localhost:3000/api/agora';
+      : 'https://streamy-backend-xyg8.onrender.com/api/agora';
 
   /// Génère un token pour rejoindre un live en tant que spectateur
   static Future<AgoraTokenResponse> getViewerToken({

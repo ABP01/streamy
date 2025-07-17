@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: streamy-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromService:
+          type: web
+          name: streamy-backend
+          property: port
+      - key: HOST
+        value: 0.0.0.0
