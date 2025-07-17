@@ -5,9 +5,22 @@ import 'package:http/http.dart' as http;
 
 /// Service pour communiquer avec le backend Node.js et obtenir les tokens Agora
 class AgoraBackendService {
-  static const String _baseUrl = kDebugMode
-      ? 'http://10.0.2.2:3000/api/agora'
-      : 'https://streamy-backend-xyg8.onrender.com/api/agora';
+  // Utilisation du backend hébergé sur Render
+  static const String _baseUrl =
+      'https://streamy-backend-xyg8.onrender.com/api/agora';
+
+  /// Réveille le backend Render s'il est en veille
+  static Future<void> wakeUpBackend() async {
+    try {
+      debugPrint('🌅 Réveil du backend Render...');
+      await http
+          .get(Uri.parse('${_baseUrl.replaceAll('/api/agora', '')}/health'))
+          .timeout(const Duration(seconds: 30)); // Long timeout pour le wake-up
+      debugPrint('✅ Backend réveillé');
+    } catch (e) {
+      debugPrint('⚠️ Échec du réveil du backend: $e');
+    }
+  }
 
   /// Génère un token pour rejoindre un live en tant que spectateur
   static Future<AgoraTokenResponse> getViewerToken({
@@ -15,15 +28,20 @@ class AgoraBackendService {
     required String userId,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/live-token'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'liveId': liveId,
-          'userId': userId,
-          'role': 'viewer',
-        }),
+      debugPrint(
+        '🔄 Demande de token spectateur pour live: $liveId, user: $userId',
       );
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/live-token'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'liveId': liveId,
+              'userId': userId,
+              'role': 'viewer',
+            }),
+          )
+          .timeout(const Duration(seconds: 15)); // Timeout plus long
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -48,11 +66,18 @@ class AgoraBackendService {
     required String userId,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/live-token'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'liveId': liveId, 'userId': userId, 'role': 'host'}),
-      );
+      debugPrint('🔄 Demande de token hôte pour live: $liveId, user: $userId');
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/live-token'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'liveId': liveId,
+              'userId': userId,
+              'role': 'host',
+            }),
+          )
+          .timeout(const Duration(seconds: 15)); // Timeout plus long
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -74,20 +99,29 @@ class AgoraBackendService {
   /// Teste la connexion au backend
   static Future<bool> testConnection() async {
     try {
+      debugPrint('🔄 Test de connexion au backend: $_baseUrl/config');
       final response = await http
           .get(
             Uri.parse('$_baseUrl/config'),
             headers: {'Content-Type': 'application/json'},
           )
-          .timeout(const Duration(seconds: 5));
+          .timeout(
+            const Duration(seconds: 15),
+          ); // Augmentation du timeout pour Render
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         debugPrint('✅ Connexion au backend réussie');
         debugPrint('📡 Configuration Agora: ${data['data']['isConfigValid']}');
+        debugPrint('🔧 App ID configuré: ${data['data']['appId']}');
+        debugPrint(
+          '🔐 Certificat configuré: ${data['data']['certificateConfigured']}',
+        );
         return data['success'] == true;
       } else {
-        debugPrint('❌ Backend non accessible (${response.statusCode})');
+        debugPrint(
+          '❌ Backend non accessible (${response.statusCode}): ${response.body}',
+        );
         return false;
       }
     } catch (e) {
@@ -126,17 +160,24 @@ class AgoraBackendService {
   /// Vérifie l'état du backend
   static Future<BackendHealthResponse> checkHealth() async {
     try {
+      debugPrint('🔄 Vérification de l\'état du backend...');
       final response = await http
           .get(
             Uri.parse('${_baseUrl.replaceAll('/api/agora', '')}/health'),
             headers: {'Content-Type': 'application/json'},
           )
-          .timeout(const Duration(seconds: 3));
+          .timeout(
+            const Duration(seconds: 10),
+          ); // Timeout plus long pour Render
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        debugPrint('✅ Backend opérationnel: ${data['message']}');
         return BackendHealthResponse.fromJson(data);
       } else {
+        debugPrint(
+          '❌ Backend inaccessible (${response.statusCode}): ${response.body}',
+        );
         return BackendHealthResponse(
           success: false,
           message: 'Backend inaccessible (${response.statusCode})',
@@ -144,11 +185,39 @@ class AgoraBackendService {
         );
       }
     } catch (e) {
+      debugPrint('❌ Erreur de connexion au backend: $e');
       return BackendHealthResponse(
         success: false,
         message: 'Erreur de connexion: $e',
         status: 'error',
       );
+    }
+  }
+
+  /// Initialise le service et vérifie la connectivité
+  static Future<bool> initialize() async {
+    try {
+      debugPrint('🚀 Initialisation du service Agora Backend...');
+
+      // 1. Réveil du backend Render
+      await wakeUpBackend();
+
+      // 2. Test de la connexion
+      final isConnected = await testConnection();
+
+      // 3. Vérification de la santé
+      final health = await checkHealth();
+
+      if (isConnected && health.success) {
+        debugPrint('✅ Service Agora Backend initialisé avec succès');
+        return true;
+      } else {
+        debugPrint('⚠️ Service Agora Backend partiellement fonctionnel');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('❌ Échec de l\'initialisation du service Agora Backend: $e');
+      return false;
     }
   }
 }

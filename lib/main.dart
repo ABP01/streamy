@@ -20,8 +20,8 @@ void main() async {
   // Test de la configuration Agora en mode debug
   AgoraDebugService.testAgoraConfig();
 
-  // Test de connexion au backend
-  final backendHealthy = await AgoraBackendService.testConnection();
+  // Initialisation du backend et réveil si nécessaire
+  final backendHealthy = await AgoraBackendService.initialize();
   if (backendHealthy) {
     print('✅ Backend connecté et opérationnel');
   } else {
