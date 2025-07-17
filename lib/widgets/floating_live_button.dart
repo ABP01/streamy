@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../screens/live_stream_screen.dart';
+import '../screens/host_live_screen.dart';
 import '../services/live_stream_service.dart';
 
 /// 🔴 Bouton flottant pour démarrer un live
@@ -63,7 +63,7 @@ class _FloatingLiveButtonState extends State<FloatingLiveButton>
     );
   }
 
-  Future<void> _createLive({String? title, bool frontCamera = true}) async {
+  Future<void> _createLive() async {
     setState(() {
       _isCreatingLive = true;
     });
@@ -86,14 +86,13 @@ class _FloatingLiveButtonState extends State<FloatingLiveButton>
 
       final newLive = await liveService.createLiveStream(hostId: user.id);
 
-      // 3. Naviguer vers l'écran de live
+      // 3. Naviguer vers l'écran de live d'hôte
       if (mounted) {
         Navigator.of(context).pop(); // Fermer la bottom sheet
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                LiveStreamScreen(liveId: newLive.id, isHost: true),
+            builder: (context) => HostLiveScreen(live: newLive),
           ),
         );
       }
@@ -251,7 +250,7 @@ class _FloatingLiveButtonState extends State<FloatingLiveButton>
 
 /// Bottom sheet pour configurer rapidement un live
 class CreateLiveBottomSheet extends StatefulWidget {
-  final Function({String? title, bool frontCamera}) onCreateLive;
+  final VoidCallback onCreateLive;
 
   const CreateLiveBottomSheet({super.key, required this.onCreateLive});
 
@@ -481,12 +480,7 @@ class _CreateLiveBottomSheetState extends State<CreateLiveBottomSheet> {
   Future<void> _createLive() async {
     setState(() => _isCreating = true);
 
-    await widget.onCreateLive(
-      title: _titleController.text.trim().isEmpty
-          ? null
-          : _titleController.text.trim(),
-      frontCamera: _frontCamera,
-    );
+    widget.onCreateLive();
 
     setState(() => _isCreating = false);
   }

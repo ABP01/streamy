@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/models.dart';
-import '../screens/live_stream_screen.dart';
+import '../screens/host_live_screen.dart';
 import '../screens/messaging_screen.dart';
 import '../screens/search_users_screen.dart';
 import '../screens/settings_screen.dart';
@@ -222,8 +222,7 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                LiveStreamScreen(liveId: newLive.id, isHost: true),
+            builder: (context) => HostLiveScreen(live: newLive),
           ),
         );
       }

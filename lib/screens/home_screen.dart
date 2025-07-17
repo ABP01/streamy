@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../config/app_config.dart';
 import '../models/live_stream.dart';
+import '../screens/host_live_screen.dart';
+import '../screens/live_stream_screen.dart';
 import '../services/live_stream_service.dart';
-import 'live_stream_screen.dart';
+import '../widgets/camera_debug_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -77,7 +79,8 @@ class _HomeScreenState extends State<HomeScreen>
 
       if (mounted) {
         setState(() {
-          _liveStreams = streams.where((stream) => stream.isLive).toList();
+          _liveStreams =
+              streams; // Plus besoin de filtrer ici, le service le fait déjà
           _isLoading = false;
         });
 
@@ -103,7 +106,8 @@ class _HomeScreenState extends State<HomeScreen>
 
       if (mounted) {
         setState(() {
-          _liveStreams = streams.where((stream) => stream.isLive).toList();
+          _liveStreams =
+              streams; // Plus besoin de filtrer ici, le service le fait déjà
         });
       }
     } catch (e) {
@@ -134,10 +138,7 @@ class _HomeScreenState extends State<HomeScreen>
         onLiveCreated: (live) {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  LiveStreamScreen(liveId: live.id, isHost: true),
-            ),
+            MaterialPageRoute(builder: (context) => HostLiveScreen(live: live)),
           );
         },
       ),
@@ -148,13 +149,20 @@ class _HomeScreenState extends State<HomeScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildAppBar(),
-            Expanded(child: _buildBody()),
-          ],
-        ),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
+                _buildAppBar(),
+                Expanded(child: _buildBody()),
+              ],
+            ),
+          ),
+          // Widget de test caméra (mode debug seulement)
+          if (true) // Vous pouvez changer ça en kDebugMode
+            const CameraDebugWidget(),
+        ],
       ),
       floatingActionButton: ScaleTransition(
         scale: _fabAnimation,

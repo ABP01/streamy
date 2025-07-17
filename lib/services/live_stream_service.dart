@@ -5,6 +5,39 @@ import '../config/app_config.dart';
 import '../models/live_stream.dart';
 import 'agora_backend_service.dart';
 
+// --- Enumération pour trier les lives ---
+enum LiveStreamSort { viewerCount, recent, popular }
+
+// --- Modèle pour les stats ---
+class LiveStats {
+  final int viewerCount;
+  final int likeCount;
+  final int giftCount;
+  final int messageCount;
+  final Duration duration;
+  final int activeViewers;
+
+  LiveStats({
+    required this.viewerCount,
+    required this.likeCount,
+    required this.giftCount,
+    required this.messageCount,
+    required this.duration,
+    required this.activeViewers,
+  });
+
+  String get formattedDuration {
+    final h = duration.inHours;
+    final m = duration.inMinutes.remainder(60);
+    final s = duration.inSeconds.remainder(60);
+    return h > 0
+        ? '${h}h ${m}m ${s}s'
+        : m > 0
+        ? '${m}m ${s}s'
+        : '${s}s';
+  }
+}
+
 class LiveStreamService {
   static final _supabase = Supabase.instance.client;
   static const _uuid = Uuid();
@@ -23,6 +56,11 @@ class LiveStreamService {
     String? searchQuery,
     LiveStreamSort sort = LiveStreamSort.viewerCount,
   }) async {
+    print('🔍 Récupération des lives actifs (limit: $limit, offset: $offset)');
+
+    // Nettoyage préventif des lives "zombies" (anciens de plus de 4 heures)
+    await _cleanupOldLives();
+
     dynamic query = _supabase
         .from('lives')
         .select('''
@@ -38,6 +76,7 @@ class LiveStreamService {
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
       query = query.ilike('host_name', '%$searchQuery%');
+      print('🔍 Recherche appliquée: $searchQuery');
     }
 
     query = query
@@ -46,7 +85,9 @@ class LiveStreamService {
 
     final response = await query;
 
-    return (response as List).map((json) {
+    print('📊 Résultats bruts de la DB: ${(response as List).length} lives');
+
+    final liveStreams = response.map((json) {
       final user = json['users'];
       if (user != null) {
         json['host_name'] = user['full_name'] ?? user['username'];
@@ -54,6 +95,24 @@ class LiveStreamService {
       }
       return LiveStream.fromJson(json);
     }).toList();
+
+    // Filtrage supplémentaire pour s'assurer que seuls les vrais lives actifs sont retournés
+    final activeLives = liveStreams.where((live) {
+      final isActive =
+          live.isLive && live.startedAt != null && live.endedAt == null;
+
+      if (!isActive) {
+        print(
+          '⚠️ Live filtré: ${live.id} (isLive: ${live.isLive}, startedAt: ${live.startedAt}, endedAt: ${live.endedAt})',
+        );
+      }
+
+      return isActive;
+    }).toList();
+
+    print('✅ Lives actifs retournés: ${activeLives.length}');
+
+    return activeLives;
   }
 
   // --- Interagir avec un live ---
@@ -106,15 +165,40 @@ class LiveStreamService {
 
   // --- Mettre fin à un live ---
   Future<void> endLiveStream(String liveId) async {
-    await _supabase
-        .from('lives')
-        .update({
-          'is_live': false,
-          'ended_at': DateTime.now().toIso8601String(),
-        })
-        .eq('id', liveId);
+    print('🔚 Début de la fermeture du live: $liveId');
 
-    await _cleanupLiveSession(liveId);
+    try {
+      // Étape 1: Marquer le live comme terminé dans la base de données
+      print('💾 Mise à jour du statut du live...');
+      await _supabase
+          .from('lives')
+          .update({
+            'is_live': false,
+            'ended_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', liveId);
+
+      print('✅ Statut du live mis à jour');
+
+      // Étape 2: Nettoyage de la session (en parallèle pour plus d'efficacité)
+      print('🧹 Nettoyage de la session...');
+      await _cleanupLiveSession(liveId);
+
+      print('✅ Live fermé avec succès: $liveId');
+    } catch (e) {
+      print('❌ Erreur lors de la fermeture du live $liveId: $e');
+
+      // Même en cas d'erreur, essayer le nettoyage
+      try {
+        await _cleanupLiveSession(liveId);
+        print('✅ Nettoyage effectué malgré l\'erreur de mise à jour');
+      } catch (cleanupError) {
+        print('❌ Erreur lors du nettoyage: $cleanupError');
+      }
+
+      // Re-lancer l'erreur pour que l'appelant soit informé
+      rethrow;
+    }
   }
 
   // --- Rejoindre / quitter un live ---
@@ -184,6 +268,8 @@ class LiveStreamService {
 
   // --- Rechercher des lives ---
   Future<List<LiveStream>> searchLives(String query, {int limit = 20}) async {
+    print('🔍 Recherche de lives actifs: "$query"');
+
     final response = await _supabase
         .from('lives')
         .select('''
@@ -199,7 +285,9 @@ class LiveStreamService {
         .order('viewer_count', ascending: false)
         .limit(limit);
 
-    return (response as List).map((json) {
+    print('📊 Résultats de recherche: ${response.length} lives trouvés');
+
+    final liveStreams = response.map((json) {
       final user = json['users'];
       if (user != null) {
         json['host_name'] = user['full_name'] ?? user['username'];
@@ -207,6 +295,16 @@ class LiveStreamService {
       }
       return LiveStream.fromJson(json);
     }).toList();
+
+    // Filtrage supplémentaire pour s'assurer que seuls les vrais lives actifs sont retournés
+    final activeLives = liveStreams.where((live) {
+      final isActive =
+          live.isLive && live.startedAt != null && live.endedAt == null;
+      return isActive;
+    }).toList();
+
+    print('✅ Lives actifs trouvés: ${activeLives.length}');
+    return activeLives;
   }
 
   // --- Watch en temps réel ---
@@ -345,14 +443,50 @@ class LiveStreamService {
 
   // --- Méthodes internes ---
   Future<void> _cleanupLiveSession(String liveId) async {
+    print('🧹 Nettoyage de la session live: $liveId');
+
     try {
-      await _supabase.from('live_viewers').delete().eq('live_id', liveId);
-      await _supabase
-          .from('live_messages')
-          .update({'is_archived': true})
-          .eq('live_id', liveId);
+      // Exécuter les opérations de nettoyage en parallèle pour plus d'efficacité
+      await Future.wait([
+        // Supprimer tous les spectateurs du live
+        _supabase.from('live_viewers').delete().eq('live_id', liveId),
+
+        // Archiver les messages du live
+        _supabase
+            .from('live_messages')
+            .update({'is_archived': true})
+            .eq('live_id', liveId),
+      ]);
+
+      print('✅ Session nettoyée avec succès pour le live: $liveId');
     } catch (e) {
-      print('Erreur nettoyage session : $e');
+      print('❌ Erreur lors du nettoyage de la session $liveId: $e');
+
+      // Tenter un nettoyage individuel en cas d'échec du parallèle
+      try {
+        print('🔄 Tentative de nettoyage individuel...');
+
+        // Nettoyer les spectateurs
+        try {
+          await _supabase.from('live_viewers').delete().eq('live_id', liveId);
+          print('✅ Spectateurs supprimés');
+        } catch (viewerError) {
+          print('⚠️ Erreur suppression spectateurs: $viewerError');
+        }
+
+        // Archiver les messages
+        try {
+          await _supabase
+              .from('live_messages')
+              .update({'is_archived': true})
+              .eq('live_id', liveId);
+          print('✅ Messages archivés');
+        } catch (messageError) {
+          print('⚠️ Erreur archivage messages: $messageError');
+        }
+      } catch (fallbackError) {
+        print('❌ Échec du nettoyage de fallback: $fallbackError');
+      }
     }
   }
 
@@ -371,37 +505,38 @@ class LiveStreamService {
       print('Erreur message système : $e');
     }
   }
-}
 
-// --- Enumération ---
-enum LiveStreamSort { viewerCount, recent, popular }
+  // --- Nettoyage automatique des lives "zombies" ---
+  Future<void> _cleanupOldLives() async {
+    try {
+      // Chercher les lives marqués comme actifs mais démarrés il y a plus de 4 heures
+      final cutoffTime = DateTime.now().subtract(const Duration(hours: 4));
 
-// --- Modèle pour les stats ---
-class LiveStats {
-  final int viewerCount;
-  final int likeCount;
-  final int giftCount;
-  final int messageCount;
-  final Duration duration;
-  final int activeViewers;
+      final response = await _supabase
+          .from('lives')
+          .select('id, started_at')
+          .eq('is_live', true)
+          .lt('started_at', cutoffTime.toIso8601String());
 
-  LiveStats({
-    required this.viewerCount,
-    required this.likeCount,
-    required this.giftCount,
-    required this.messageCount,
-    required this.duration,
-    required this.activeViewers,
-  });
+      if (response.isNotEmpty) {
+        print('🧹 Nettoyage de ${response.length} lives "zombies" détectés');
 
-  String get formattedDuration {
-    final h = duration.inHours;
-    final m = duration.inMinutes.remainder(60);
-    final s = duration.inSeconds.remainder(60);
-    return h > 0
-        ? '${h}h ${m}m ${s}s'
-        : m > 0
-        ? '${m}m ${s}s'
-        : '${s}s';
+        // Marquer ces lives comme terminés
+        for (final liveId in response.map((live) => live['id'] as String)) {
+          await _supabase
+              .from('lives')
+              .update({
+                'is_live': false,
+                'ended_at': DateTime.now().toIso8601String(),
+              })
+              .eq('id', liveId);
+        }
+
+        print('✅ ${response.length} lives "zombies" nettoyés');
+      }
+    } catch (e) {
+      print('⚠️ Erreur lors du nettoyage des lives zombies: $e');
+      // Ne pas lever l'erreur pour ne pas bloquer la récupération des lives
+    }
   }
 }

@@ -15,7 +15,6 @@ class LiveStream {
   final bool isLive;
   final DateTime? startedAt;
   final DateTime? endedAt;
-  final bool isPrivate;
   final int maxViewers;
   final Map<String, dynamic>? metadata;
   final String? agoraChannelId;
@@ -34,7 +33,6 @@ class LiveStream {
     this.isLive = false,
     this.startedAt,
     this.endedAt,
-    this.isPrivate = false,
     this.maxViewers = 1000,
     this.metadata,
     this.agoraChannelId,
@@ -59,7 +57,6 @@ class LiveStream {
       endedAt: json['ended_at'] != null
           ? DateTime.parse(json['ended_at'])
           : null,
-      isPrivate: json['is_private'] as bool? ?? false,
       maxViewers: json['max_viewers'] as int? ?? 1000,
       metadata: json['metadata'] as Map<String, dynamic>?,
       agoraChannelId: json['agora_channel_id'] as String?,
@@ -85,6 +82,7 @@ class LiveStream {
       'is_live': isLive,
       'started_at': startedAt?.toIso8601String(),
       'ended_at': endedAt?.toIso8601String(),
+      'max_viewers': maxViewers,
       'metadata': metadata,
       'agora_channel_id': agoraChannelId,
       'agora_token': agoraToken,
@@ -104,7 +102,6 @@ class LiveStream {
     bool? isLive,
     DateTime? startedAt,
     DateTime? endedAt,
-    bool? isPrivate,
     int? maxViewers,
     Map<String, dynamic>? metadata,
     String? agoraChannelId,
@@ -123,7 +120,6 @@ class LiveStream {
       isLive: isLive ?? this.isLive,
       startedAt: startedAt ?? this.startedAt,
       endedAt: endedAt ?? this.endedAt,
-      isPrivate: isPrivate ?? this.isPrivate,
       maxViewers: maxViewers ?? this.maxViewers,
       metadata: metadata ?? this.metadata,
       agoraChannelId: agoraChannelId ?? this.agoraChannelId,
