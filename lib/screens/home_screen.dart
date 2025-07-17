@@ -736,7 +736,6 @@ class _CreateLiveSheetState extends State<_CreateLiveSheet> {
       final liveStreamService = LiveStreamService();
       final live = await liveStreamService.createLiveStream(
         hostId: 'current_user_id', // À remplacer par l'ID utilisateur réel
-        isPrivate: false,
       );
 
       Navigator.pop(context);

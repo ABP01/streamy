@@ -32,6 +32,7 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
   List<LiveStream> _lives = [];
   int _currentIndex = 0;
   bool _isLoading = true;
+  bool _isRefreshing = false;
   DateTime? _lastSwipeTime;
 
   @override
@@ -134,6 +135,12 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
   }
 
   Future<void> _refreshLives() async {
+    if (_isRefreshing) return;
+
+    setState(() {
+      _isRefreshing = true;
+    });
+
     try {
       final newLives = await SwipeNavigationService.getRecommendedLives(
         limit: 20,
@@ -151,6 +158,10 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
       }
     } catch (e) {
       print('Erreur rafraîchissement: $e');
+    } finally {
+      setState(() {
+        _isRefreshing = false;
+      });
     }
   }
 
@@ -185,9 +196,11 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
       }
     } catch (e) {
       print('Erreur lors du démarrage du live: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erreur: ${e.toString()}')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: ${e.toString()}')));
+      }
     }
   }
 
@@ -203,26 +216,101 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
     if (_lives.isEmpty) {
       return Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.live_tv_outlined,
-                size: 64,
-                color: Colors.white54,
+        body: RefreshIndicator(
+          onRefresh: _refreshLives,
+          color: Colors.purple,
+          backgroundColor: Colors.grey[900],
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Animation de l'icône
+                  TweenAnimationBuilder<double>(
+                    duration: const Duration(seconds: 2),
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    builder: (context, value, child) {
+                      return Transform.scale(
+                        scale: 0.8 + (0.2 * value),
+                        child: Opacity(
+                          opacity: value,
+                          child: const Icon(
+                            Icons.live_tv_outlined,
+                            size: 80,
+                            color: Colors.white54,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  const Text(
+                    'Aucun live pour le moment',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  const Text(
+                    'Tire vers le bas pour rafraîchir\nou lance le premier live !',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white60, fontSize: 16),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Bouton de rechargement
+                  ElevatedButton.icon(
+                    onPressed: _refreshLives,
+                    icon: const Icon(Icons.refresh, color: Colors.white),
+                    label: const Text(
+                      'Recharger',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Bouton pour démarrer un live
+                  OutlinedButton.icon(
+                    onPressed: _startLive,
+                    icon: const Icon(Icons.videocam, color: Colors.red),
+                    label: const Text(
+                      'Démarrer un live',
+                      style: TextStyle(color: Colors.red, fontSize: 16),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red, width: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Aucun live disponible',
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _refreshLives,
-                child: const Text('Actualiser'),
-              ),
-            ],
+            ),
           ),
         ),
       );
@@ -232,31 +320,36 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // PageView principal pour la navigation verticale
-          PageView.builder(
-            controller: _pageController,
-            scrollDirection: Axis.vertical,
-            onPageChanged: _onPageChanged,
-            itemCount: _lives.length,
-            itemBuilder: (context, index) {
-              final live = _lives[index];
-              return Stack(
-                children: [
-                  // Player vidéo en arrière-plan
-                  LivePlayerWidget(
-                    live: live,
-                    isActive: index == _currentIndex,
-                  ),
+          // RefreshIndicator pour swipe-to-refresh
+          RefreshIndicator(
+            onRefresh: _refreshLives,
+            color: Colors.purple,
+            backgroundColor: Colors.grey[900],
+            child: PageView.builder(
+              controller: _pageController,
+              scrollDirection: Axis.vertical,
+              onPageChanged: _onPageChanged,
+              itemCount: _lives.length,
+              itemBuilder: (context, index) {
+                final live = _lives[index];
+                return Stack(
+                  children: [
+                    // Player vidéo en arrière-plan
+                    LivePlayerWidget(
+                      live: live,
+                      isActive: index == _currentIndex,
+                    ),
 
-                  // Overlay avec informations et contrôles
-                  LiveOverlayWidget(
-                    live: live,
-                    isActive: index == _currentIndex,
-                    onRefresh: _refreshLives,
-                  ),
-                ],
-              );
-            },
+                    // Overlay avec informations et contrôles
+                    LiveOverlayWidget(
+                      live: live,
+                      isActive: index == _currentIndex,
+                      onRefresh: _refreshLives,
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
 
           // Barre de navigation supérieure

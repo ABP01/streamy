@@ -85,8 +85,6 @@ class LiveStream {
       'is_live': isLive,
       'started_at': startedAt?.toIso8601String(),
       'ended_at': endedAt?.toIso8601String(),
-      'is_private': isPrivate,
-      'max_viewers': maxViewers,
       'metadata': metadata,
       'agora_channel_id': agoraChannelId,
       'agora_token': agoraToken,

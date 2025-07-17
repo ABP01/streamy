@@ -210,7 +210,7 @@ class FollowService {
       // Récupérer les utilisateurs les plus populaires qu'on ne suit pas encore
       final response = await _supabase.rpc(
         'get_suggested_users',
-        params: {'current_user_id': currentUser.id, 'result_limit': limit},
+        params: {'current_user_id': currentUser.id, 'limit_count': limit},
       );
 
       return (response as List)

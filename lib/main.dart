@@ -6,12 +6,12 @@ import 'package:uuid/uuid.dart';
 
 import 'config/app_config.dart';
 import 'models/live_stream.dart';
+import 'screens/smart_landing_screen.dart';
 import 'services/agora_backend_service.dart';
 import 'services/agora_debug_service.dart';
 import 'services/agora_error_handler.dart';
 import 'services/auth_service.dart';
 import 'services/live_stream_service.dart';
-import 'widgets/navigation_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,7 +71,7 @@ class AuthGate extends StatelessWidget {
         if (session == null) {
           return const AuthPage();
         } else {
-          return const NavigationWrapper();
+          return const SmartLandingScreen();
         }
       },
     );

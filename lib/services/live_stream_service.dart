@@ -70,11 +70,7 @@ class LiveStreamService {
   }
 
   // --- Créer un nouveau live avec token Agora ---
-  Future<LiveStream> createLiveStream({
-    required String hostId,
-    bool isPrivate = false,
-    int maxViewers = 1000,
-  }) async {
+  Future<LiveStream> createLiveStream({required String hostId}) async {
     final id = _uuid.v4();
     // En mode test, utiliser le canal de test d'Agora
     final agoraChannelId = 'live_$id';
@@ -94,8 +90,6 @@ class LiveStreamService {
         .insert({
           'id': id,
           'host_id': hostId,
-          'is_private': isPrivate,
-          'max_viewers': maxViewers,
           'is_live': true,
           'started_at': DateTime.now().toIso8601String(),
           'agora_channel_id': agoraChannelId,

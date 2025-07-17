@@ -248,119 +248,127 @@ class _UserProfileScreenState extends State<UserProfileScreen>
         ),
       ),
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              const SizedBox(height: 40),
-              // Avatar
-              CircleAvatar(
-                radius: 50,
-                backgroundImage: _userProfile!.avatar != null
-                    ? CachedNetworkImageProvider(_userProfile!.avatar!)
-                    : null,
-                child: _userProfile!.avatar == null
-                    ? Text(
-                        _userProfile!.displayName.substring(0, 1).toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(height: 16),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                // Avatar
+                CircleAvatar(
+                  radius: 50,
+                  backgroundImage:
+                      _userProfile!.avatar != null &&
+                          _userProfile!.avatar!.isNotEmpty
+                      ? CachedNetworkImageProvider(_userProfile!.avatar!)
+                      : null,
+                  child:
+                      _userProfile!.avatar == null ||
+                          _userProfile!.avatar!.isEmpty
+                      ? Text(
+                          _userProfile!.displayName
+                              .substring(0, 1)
+                              .toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
+                ),
+                const SizedBox(height: 16),
 
-              // Nom et badge vérifié
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+                // Nom et badge vérifié
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _userProfile!.displayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (_userProfile!.isVerified) ...[
+                      const SizedBox(width: 8),
+                      const Icon(Icons.verified, color: Colors.blue, size: 24),
+                    ],
+                  ],
+                ),
+
+                // Username
+                if (_userProfile!.username != null) ...[
+                  const SizedBox(height: 4),
                   Text(
-                    _userProfile!.displayName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    '@${_userProfile!.username}',
+                    style: const TextStyle(color: Colors.grey, fontSize: 16),
                   ),
-                  if (_userProfile!.isVerified) ...[
-                    const SizedBox(width: 8),
-                    const Icon(Icons.verified, color: Colors.blue, size: 24),
-                  ],
                 ],
-              ),
 
-              // Username
-              if (_userProfile!.username != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  '@${_userProfile!.username}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 16),
+                const SizedBox(height: 16),
+
+                // Statistiques
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildStatColumn('Followers', _userProfile!.followers),
+                    _buildStatColumn('Following', _userProfile!.following),
+                    _buildStatColumn('Likes', _userProfile!.totalLikes),
+                  ],
                 ),
+
+                const SizedBox(height: 20),
+
+                // Boutons d'action
+                if (!widget.isCurrentUser)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildFollowButton(),
+                      _buildMessageButton(),
+                      _buildGiftButton(),
+                    ],
+                  ),
+
+                // Bouton paramètres pour l'utilisateur actuel
+                if (widget.isCurrentUser)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SettingsScreen(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Modifier'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SettingsScreen(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.settings),
+                        label: const Text('Paramètres'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[800],
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
-
-              const SizedBox(height: 16),
-
-              // Statistiques
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildStatColumn('Followers', _userProfile!.followers),
-                  _buildStatColumn('Following', _userProfile!.following),
-                  _buildStatColumn('Likes', _userProfile!.totalLikes),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // Boutons d'action
-              if (!widget.isCurrentUser)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildFollowButton(),
-                    _buildMessageButton(),
-                    _buildGiftButton(),
-                  ],
-                ),
-
-              // Bouton paramètres pour l'utilisateur actuel
-              if (widget.isCurrentUser)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SettingsScreen(),
-                        ),
-                      ),
-                      icon: const Icon(Icons.edit),
-                      label: const Text('Modifier'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SettingsScreen(),
-                        ),
-                      ),
-                      icon: const Icon(Icons.settings),
-                      label: const Text('Paramètres'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[800],
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-            ],
+            ),
           ),
         ),
       ),
