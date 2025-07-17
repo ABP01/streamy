@@ -131,6 +131,17 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
       }
     } catch (e) {
       print('Erreur chargement lives supplémentaires: $e');
+      // Afficher un message d'erreur discret à l'utilisateur
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Erreur lors du chargement des lives'),
+            backgroundColor: Colors.red.withOpacity(0.8),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -150,14 +161,36 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
           _lives = newLives;
           _currentIndex = 0;
         });
-        _pageController.animateToPage(
+        await _pageController.animateToPage(
           0,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
+      } else {
+        // Afficher un message si aucun live n'est trouvé
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Aucun nouveau live disponible'),
+              backgroundColor: Colors.orange.withOpacity(0.8),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (e) {
       print('Erreur rafraîchissement: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Erreur lors du rafraîchissement'),
+            backgroundColor: Colors.red.withOpacity(0.8),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       setState(() {
         _isRefreshing = false;
@@ -207,9 +240,24 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator(color: Colors.white)),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(
+                color: Colors.purple,
+                strokeWidth: 3,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Chargement des lives...',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -224,91 +272,106 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             child: SizedBox(
               height: MediaQuery.of(context).size.height,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Animation de l'icône
-                  TweenAnimationBuilder<double>(
-                    duration: const Duration(seconds: 2),
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    builder: (context, value, child) {
-                      return Transform.scale(
-                        scale: 0.8 + (0.2 * value),
-                        child: Opacity(
-                          opacity: value,
-                          child: const Icon(
-                            Icons.live_tv_outlined,
-                            size: 80,
-                            color: Colors.white54,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      TweenAnimationBuilder<double>(
+                        duration: const Duration(seconds: 2),
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        builder: (context, value, child) {
+                          return Transform.scale(
+                            scale: 0.8 + (0.2 * value),
+                            child: Opacity(
+                              opacity: value,
+                              child: const Icon(
+                                Icons.live_tv_outlined,
+                                size: 80,
+                                color: Colors.white54,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Aucun live pour le moment',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Tire vers le bas pour rafraîchir\nou lance le premier live !',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white60, fontSize: 16),
+                      ),
+                      const SizedBox(height: 32),
+                      ElevatedButton.icon(
+                        onPressed: _isRefreshing ? null : _refreshLives,
+                        icon: _isRefreshing
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.refresh, color: Colors.white),
+                        label: Text(
+                          _isRefreshing ? 'Chargement...' : 'Recharger',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    'Aucun live pour le moment',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  const Text(
-                    'Tire vers le bas pour rafraîchir\nou lance le premier live !',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white60, fontSize: 16),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Bouton de rechargement
-                  ElevatedButton.icon(
-                    onPressed: _refreshLives,
-                    icon: const Icon(Icons.refresh, color: Colors.white),
-                    label: const Text(
-                      'Recharger',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isRefreshing
+                              ? Colors.purple.withOpacity(0.6)
+                              : Colors.purple,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: _startLive,
+                        icon: const Icon(Icons.videocam, color: Colors.red),
+                        label: const Text(
+                          'Démarrer un live',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.red, width: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // Bouton pour démarrer un live
-                  OutlinedButton.icon(
-                    onPressed: _startLive,
-                    icon: const Icon(Icons.videocam, color: Colors.red),
-                    label: const Text(
-                      'Démarrer un live',
-                      style: TextStyle(color: Colors.red, fontSize: 16),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.red, width: 2),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -373,25 +436,33 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // Bouton recherche
-            IconButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SearchUsersScreen(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.search, color: Colors.white, size: 28),
+            Semantics(
+              label: 'Rechercher des utilisateurs',
+              button: true,
+              child: IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SearchUsersScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.search, color: Colors.white, size: 28),
+                tooltip: 'Rechercher',
+              ),
             ),
 
             // Logo/Titre
-            const Text(
-              'Streamy',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            Semantics(
+              header: true,
+              child: const Text(
+                'Streamy',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
 
@@ -399,83 +470,98 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
             Row(
               children: [
                 // Bouton messages
-                IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const MessagingScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.message,
-                    color: Colors.white,
-                    size: 28,
+                Semantics(
+                  label: 'Messages',
+                  button: true,
+                  child: IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MessagingScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.message,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    tooltip: 'Messages',
                   ),
                 ),
 
                 // Bouton cadeaux/tokens
-                IconButton(
-                  onPressed: _showGiftShop,
-                  icon: const Icon(
-                    Icons.card_giftcard,
-                    color: Colors.amber,
-                    size: 28,
+                Semantics(
+                  label: 'Boutique de cadeaux',
+                  button: true,
+                  child: IconButton(
+                    onPressed: _showGiftShop,
+                    icon: const Icon(
+                      Icons.card_giftcard,
+                      color: Colors.amber,
+                      size: 28,
+                    ),
+                    tooltip: 'Cadeaux',
                   ),
                 ),
 
                 // Bouton menu/paramètres
-                PopupMenuButton<String>(
-                  icon: const Icon(
-                    Icons.more_vert,
-                    color: Colors.white,
-                    size: 28,
+                Semantics(
+                  label: 'Menu principal',
+                  button: true,
+                  child: PopupMenuButton<String>(
+                    icon: const Icon(
+                      Icons.more_vert,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    color: Colors.grey[900],
+                    tooltip: 'Menu',
+                    onSelected: (String value) {
+                      switch (value) {
+                        case 'settings':
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SettingsScreen(),
+                            ),
+                          );
+                          break;
+                        case 'refresh':
+                          _refreshLives();
+                          break;
+                      }
+                    },
+                    itemBuilder: (BuildContext context) => [
+                      const PopupMenuItem<String>(
+                        value: 'settings',
+                        child: Row(
+                          children: [
+                            Icon(Icons.settings, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text(
+                              'Paramètres',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: 'refresh',
+                        child: Row(
+                          children: [
+                            Icon(Icons.refresh, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text(
+                              'Actualiser',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  color: Colors.grey[900],
-                  onSelected: (String value) {
-                    switch (value) {
-                      case 'settings':
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SettingsScreen(),
-                          ),
-                        );
-                        break;
-                      case 'refresh':
-                        _refreshLives();
-                        break;
-                    }
-                  },
-                  itemBuilder: (BuildContext context) => [
-                    const PopupMenuItem<String>(
-                      value: 'settings',
-                      child: Row(
-                        children: [
-                          Icon(Icons.settings, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text(
-                            'Paramètres',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: 'refresh',
-                      child: Row(
-                        children: [
-                          Icon(Icons.refresh, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text(
-                            'Actualiser',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -489,44 +575,64 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
     return Positioned(
       right: 16,
       bottom: 100,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Colors.purple, Colors.pink],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.purple.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+      child: Semantics(
+        label: 'Démarrer un live',
+        button: true,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Colors.purple, Colors.pink],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
-        ),
-        child: FloatingActionButton(
-          onPressed: _startLive,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: const Icon(Icons.add, color: Colors.white, size: 32),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.purple.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: FloatingActionButton(
+            onPressed: _startLive,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            heroTag: "start_live_fab",
+            tooltip: 'Démarrer un live',
+            child: const Icon(Icons.add, color: Colors.white, size: 32),
+          ),
         ),
       ),
     );
   }
 
   Future<void> _showGiftShop() async {
-    if (_lives.isEmpty) return;
+    if (_lives.isEmpty || _currentIndex >= _lives.length) return;
 
-    await showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => GiftShopWidget(
-        liveId: _lives[_currentIndex].id,
-        receiverId: _lives[_currentIndex].hostId,
-      ),
-    );
+    try {
+      await showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (context) => GiftShopWidget(
+          liveId: _lives[_currentIndex].id,
+          receiverId: _lives[_currentIndex].hostId,
+        ),
+      );
+    } catch (e) {
+      print('Erreur ouverture boutique de cadeaux: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Impossible d\'ouvrir la boutique de cadeaux'),
+            backgroundColor: Colors.red.withOpacity(0.8),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildPositionIndicator() {
@@ -535,18 +641,22 @@ class _TikTokStyleLiveScreenState extends State<TikTokStyleLiveScreen> {
     return Positioned(
       right: 16,
       top: MediaQuery.of(context).size.height * 0.4,
-      child: Column(
-        children: List.generate(
-          _lives.length.clamp(0, 5), // Limiter à 5 points max
-          (index) => Container(
-            margin: const EdgeInsets.symmetric(vertical: 2),
-            width: 4,
-            height: index == _currentIndex ? 16 : 8,
-            decoration: BoxDecoration(
-              color: index == _currentIndex
-                  ? Colors.white
-                  : Colors.white.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(2),
+      child: Semantics(
+        label: 'Position ${_currentIndex + 1} sur ${_lives.length}',
+        child: Column(
+          children: List.generate(
+            _lives.length.clamp(0, 5), // Limiter à 5 points max
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(vertical: 2),
+              width: 4,
+              height: index == _currentIndex ? 16 : 8,
+              decoration: BoxDecoration(
+                color: index == _currentIndex
+                    ? Colors.white
+                    : Colors.white.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ),
         ),
